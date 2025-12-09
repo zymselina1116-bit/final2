@@ -206,7 +206,7 @@
             isRotatingView: false,
             lastMouseX: 0,
             lastMouseY: 0,
-            lookRotation: { yaw: 0, pitch: -Math.PI / 36 }, // Slight downward tilt (-5°)
+            lookRotation: { yaw: 0, pitch: -Math.PI / 12 }, // Downward tilt (-15°) to see floor
 
             // Glowing point
             glowingPoint: null,
@@ -232,10 +232,11 @@
 
                 // Setup Three.js
                 this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x0a0a0a);
+                // Dim ambient background - not black void
+                this.scene.background = new THREE.Color(0x1a1a1a);
 
                 this.camera = new THREE.PerspectiveCamera(
-                    50,
+                    60, // Wider FOV for better room view
                     window.innerWidth / window.innerHeight,
                     0.1,
                     1000
@@ -244,8 +245,10 @@
 
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
+                // ENHANCED shadow rendering for visible, sharp shadows
                 this.renderer.shadowMap.enabled = true;
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.shadowMap.autoUpdate = true;
                 this.container.appendChild(this.renderer.domElement);
 
                 // Setup drawing
@@ -316,6 +319,16 @@
                 rightWall.receiveShadow = true;
                 this.scene.add(rightWall);
 
+                // Front wall (completes the enclosed room)
+                const frontWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(width, height),
+                    wallMaterial
+                );
+                frontWall.position.set(0, height / 2, depth / 2);
+                frontWall.rotation.y = Math.PI;
+                frontWall.receiveShadow = true;
+                this.scene.add(frontWall);
+
                 // Ceiling
                 const ceiling = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, depth),
@@ -325,9 +338,18 @@
                 ceiling.rotation.x = Math.PI / 2;
                 this.scene.add(ceiling);
 
-                // Ambient light (soft but visible for white gallery)
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                // Ambient light (dim but enough to see white gallery structure)
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
                 this.scene.add(ambientLight);
+
+                // Add subtle edge lighting to make corners visible
+                const edgeLight1 = new THREE.DirectionalLight(0xffffff, 0.15);
+                edgeLight1.position.set(width/2, height, depth/2);
+                this.scene.add(edgeLight1);
+
+                const edgeLight2 = new THREE.DirectionalLight(0xffffff, 0.15);
+                edgeLight2.position.set(-width/2, height, -depth/2);
+                this.scene.add(edgeLight2);
 
                 // Add a default white spotlight
                 const defaultSpotlight = this.createSpotlightObject();
@@ -390,7 +412,7 @@
                     roughness: 0.2
                 });
                 this.glowingPoint = new THREE.Mesh(geometry, material);
-                this.glowingPoint.position.set(0, 0.15, 2); // In front of camera
+                this.glowingPoint.position.set(0, 0.15, 0); // FIXED on floor center - NEVER moves
                 this.glowingPoint.userData.type = 'glowingPoint';
                 this.scene.add(this.glowingPoint);
 
@@ -483,30 +505,35 @@
             },
 
             createCarouselFromDrawing() {
-                // Create texture from drawing with transparency
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 512;
-                const ctx = canvas.getContext('2d');
-
-                ctx.clearRect(0, 0, 512, 512);
-                ctx.fillStyle = 'black';
-                ctx.beginPath();
-                this.drawingPoints.forEach((point, i) => {
-                    const x = (point.x / 400) * 512;
-                    const y = (point.y / 400) * 512;
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.closePath();
-                ctx.fill();
-
-                const texture = new THREE.CanvasTexture(canvas);
-
                 const group = new THREE.Group();
                 group.userData.type = 'carousel';
                 group.userData.rotation = 0;
                 group.userData.angularVelocity = 0;
+
+                // Create THREE.Shape from drawn points (NO rectangle shadow!)
+                const shape = new THREE.Shape();
+
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+
+                this.drawingPoints.forEach(point => {
+                    minX = Math.min(minX, point.x);
+                    maxX = Math.max(maxX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxY = Math.max(maxY, point.y);
+                });
+
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+                const scale = 1.2 / Math.max(maxX - minX, maxY - minY);
+
+                this.drawingPoints.forEach((point, i) => {
+                    const x = (point.x - centerX) * scale;
+                    const y = -(point.y - centerY) * scale;
+                    if (i === 0) shape.moveTo(x, y);
+                    else shape.lineTo(x, y);
+                });
+                shape.closePath();
 
                 // Base (metallic silver)
                 const baseGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
@@ -517,17 +544,17 @@
                 });
                 const base = new THREE.Mesh(baseGeometry, baseMaterial);
                 base.position.y = 0.05;
-                base.castShadow = true;
+                base.castShadow = false; // Base doesn't cast important shadow
                 group.add(base);
 
                 // Central axis (metallic silver)
                 const axisGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 16);
                 const axis = new THREE.Mesh(axisGeometry, baseMaterial);
                 axis.position.y = 1.25;
-                axis.castShadow = true;
+                axis.castShadow = false; // Axis doesn't cast important shadow
                 group.add(axis);
 
-                // Rotating panel group (shadow wheel)
+                // Rotating panel group with SHAPE shadows (NOT rectangle!)
                 const panelsGroup = new THREE.Group();
                 panelsGroup.position.y = 1.5;
 
@@ -537,12 +564,15 @@
                 for (let i = 0; i < numPanels; i++) {
                     const angle = (i / numPanels) * Math.PI * 2;
 
-                    const panelGeometry = new THREE.PlaneGeometry(0.8, 1.5);
+                    // Use ShapeGeometry so shadows match drawn shape EXACTLY
+                    const panelGeometry = new THREE.ShapeGeometry(shape);
                     const panelMaterial = new THREE.MeshStandardMaterial({
-                        map: texture.clone(),
+                        color: 0x404040,
                         side: THREE.DoubleSide,
                         transparent: true,
-                        alphaTest: 0.1
+                        opacity: 0.9,
+                        metalness: 0,
+                        roughness: 0.9
                     });
 
                     const panel = new THREE.Mesh(panelGeometry, panelMaterial);
@@ -552,7 +582,7 @@
                         Math.sin(angle) * radius
                     );
                     panel.rotation.y = angle + Math.PI / 2;
-                    panel.castShadow = true;
+                    panel.castShadow = true; // Shadow matches drawn shape!
 
                     panelsGroup.add(panel);
                 }
@@ -698,14 +728,18 @@
                 group.add(fixture);
                 group.userData.fixture = fixture;
 
-                // Pure WHITE spotlight (no colors)
-                const light = new THREE.SpotLight(0xffffff, 3, 40, Math.PI / 5, 0.8, 2);
+                // Pure WHITE spotlight (no colors) - ENHANCED for visible shadows
+                const light = new THREE.SpotLight(0xffffff, 5, 40, Math.PI / 5, 0.8, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
-                light.shadow.mapSize.width = 2048;
-                light.shadow.mapSize.height = 2048;
-                light.shadow.bias = -0.0001;
+                // HIGH QUALITY shadow settings for sharp, visible shadows
+                light.shadow.mapSize.width = 4096;  // Increased resolution
+                light.shadow.mapSize.height = 4096;
+                light.shadow.bias = -0.0005; // Darker shadows
+                light.shadow.camera.near = 0.1;
+                light.shadow.camera.far = 50;
+                light.shadow.radius = 1; // Soft edges but visible
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
@@ -749,97 +783,110 @@
             },
 
             createPanelFromDrawing() {
-                // Create canvas texture with transparency (cutout stencil)
-                const canvas = document.createElement('canvas');
-                canvas.width = 512;
-                canvas.height = 512;
-                const ctx = canvas.getContext('2d');
-
-                // Start with fully transparent canvas
-                ctx.clearRect(0, 0, 512, 512);
-
-                // Draw ONLY the silhouette as opaque black
-                ctx.fillStyle = 'black';
-                ctx.beginPath();
-                this.drawingPoints.forEach((point, i) => {
-                    const x = (point.x / 400) * 512;
-                    const y = (point.y / 400) * 512;
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.closePath();
-                ctx.fill();
-
-                const texture = new THREE.CanvasTexture(canvas);
-
                 const group = new THREE.Group();
                 group.userData.type = 'panel';
                 group.userData.material = this.panelMaterial;
 
-                // REDUCED SIZE: 1.5 x 1.5 (50% of original 3x3)
-                const geometry = new THREE.PlaneGeometry(1.5, 1.5);
+                // Create THREE.Shape from drawn points (for EXACT shadow shape)
+                const shape = new THREE.Shape();
+
+                // Normalize and center the drawing points
+                let minX = Infinity, maxX = -Infinity;
+                let minY = Infinity, maxY = -Infinity;
+
+                this.drawingPoints.forEach(point => {
+                    minX = Math.min(minX, point.x);
+                    maxX = Math.max(maxX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxY = Math.max(maxY, point.y);
+                });
+
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+                const scale = 1.5 / Math.max(maxX - minX, maxY - minY); // Scale to fit in 1.5 units
+
+                this.drawingPoints.forEach((point, i) => {
+                    const x = (point.x - centerX) * scale;
+                    const y = -(point.y - centerY) * scale; // Flip Y
+                    if (i === 0) shape.moveTo(x, y);
+                    else shape.lineTo(x, y);
+                });
+                shape.closePath();
+
+                // Create geometry from SHAPE (NOT rectangle) - this creates proper shadow
+                const geometry = new THREE.ShapeGeometry(shape);
 
                 // Material based on selection
                 let material;
                 if (this.panelMaterial === 'laser') {
-                    // Holographic laser material with rainbow diffraction
-                    material = new THREE.MeshStandardMaterial({
-                        map: texture,
+                    // TRUE LASER MATERIAL - rainbow holographic diffraction
+                    // Create matcap with rainbow gradient for CD/holographic effect
+                    const matcapCanvas = document.createElement('canvas');
+                    matcapCanvas.width = 256;
+                    matcapCanvas.height = 256;
+                    const ctx = matcapCanvas.getContext('2d');
+
+                    // Create radial rainbow gradient
+                    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+                    gradient.addColorStop(0, '#ffffff');
+                    gradient.addColorStop(0.2, '#ff00ff');
+                    gradient.addColorStop(0.4, '#0000ff');
+                    gradient.addColorStop(0.6, '#00ffff');
+                    gradient.addColorStop(0.8, '#ffff00');
+                    gradient.addColorStop(1, '#ff0000');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, 256, 256);
+
+                    const matcapTexture = new THREE.CanvasTexture(matcapCanvas);
+
+                    material = new THREE.MeshMatcapMaterial({
+                        matcap: matcapTexture,
                         side: THREE.DoubleSide,
                         transparent: true,
-                        alphaTest: 0.1,
-                        opacity: 0.9,
-                        metalness: 1.0,
-                        roughness: 0.0,
-                        emissive: 0xff00ff, // Magenta for holographic effect
-                        emissiveIntensity: 0.5
+                        opacity: 0.95
                     });
                 } else {
-                    // Normal translucent cloth material
+                    // NORMAL material - translucent gray shadow
                     material = new THREE.MeshStandardMaterial({
-                        map: texture,
+                        color: 0x808080,
                         side: THREE.DoubleSide,
                         transparent: true,
-                        alphaTest: 0.1,
-                        opacity: 1.0,
+                        opacity: 0.85, // Increased opacity for darker shadows
                         metalness: 0.0,
-                        roughness: 0.8
+                        roughness: 0.9
                     });
                 }
 
                 const mesh = new THREE.Mesh(geometry, material);
-                // VERTICAL panel (90° perpendicular to floor)
-                mesh.position.y = 0.75; // Adjusted for smaller size (half of 1.5)
+                // VERTICAL panel standing on floor
+                mesh.position.y = 0.75;
+                mesh.rotation.x = 0; // Face forward
                 mesh.castShadow = true;
                 mesh.receiveShadow = false;
 
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
-                // For laser panels, add rainbow glow layers
+                // For laser panels, add prismatic edge glow effect
                 if (this.panelMaterial === 'laser') {
-                    // Add multiple colored glow meshes for rainbow effect
                     const colors = [
-                        0xff0000, // Red
-                        0xff7f00, // Orange
-                        0xffff00, // Yellow
-                        0x00ff00, // Green
-                        0x0000ff, // Blue
-                        0x8b00ff  // Violet
+                        0xff0000, 0xff7f00, 0xffff00, 0x00ff00,
+                        0x00ffff, 0x0000ff, 0x8b00ff
                     ];
 
                     colors.forEach((color, i) => {
-                        const glowMaterial = new THREE.MeshBasicMaterial({
+                        const edgeMaterial = new THREE.MeshBasicMaterial({
                             color: color,
                             transparent: true,
-                            opacity: 0.15,
-                            side: THREE.DoubleSide
+                            opacity: 0.2,
+                            side: THREE.DoubleSide,
+                            blending: THREE.AdditiveBlending
                         });
-                        const glowMesh = new THREE.Mesh(geometry, glowMaterial);
-                        const offset = (i - 2.5) * 0.02; // Spread out the layers
-                        glowMesh.position.set(offset, 0.75, offset);
-                        glowMesh.scale.set(1.05, 1.05, 1.05);
-                        group.add(glowMesh);
+                        const edgeMesh = new THREE.Mesh(geometry.clone(), edgeMaterial);
+                        const offset = (i - 3) * 0.015;
+                        edgeMesh.position.set(offset, 0.75, offset * 0.5);
+                        edgeMesh.scale.set(1.02 + i * 0.01, 1.02 + i * 0.01, 1);
+                        group.add(edgeMesh);
                     });
                 }
 
@@ -1028,14 +1075,15 @@
             },
 
             updateCameraPosition() {
-                // Eye-level camera (human standing in gallery)
-                // Pulled back from center, slight downward tilt
-                const cameraY = 1.6; // Eye level
-                const cameraZ = 8; // Pulled back from center
+                // FIXED elevated camera position: 2.3 meters high, centered
+                // Camera CANNOT move - only rotation allowed
+                const cameraY = 2.3; // Elevated height (2.2 - 2.4m range)
+                const cameraX = 0;   // Center of room
+                const cameraZ = 0;   // Center of room
 
-                this.camera.position.set(0, cameraY, cameraZ);
+                this.camera.position.set(cameraX, cameraY, cameraZ);
 
-                // Calculate look direction from yaw and pitch
+                // Calculate look direction from yaw and pitch (rotation only)
                 const lookX = Math.cos(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
                 const lookY = Math.sin(this.lookRotation.pitch);
                 const lookZ = Math.sin(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
