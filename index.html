@@ -190,7 +190,7 @@
             container: null,
 
             // Room dimensions
-            roomSize: { width: 20, height: 12, depth: 20 }, // Taller ceiling for gallery feel
+            roomSize: { width: 20, height: 6, depth: 20 }, // 6m ceiling height (5-6m range)
 
             // Objects
             carousels: [],
@@ -206,7 +206,7 @@
             isRotatingView: false,
             lastMouseX: 0,
             lastMouseY: 0,
-            lookRotation: { yaw: 0, pitch: -Math.PI / 12 }, // Downward tilt (-15°) to see floor
+            lookRotation: { yaw: 0, pitch: -Math.PI / 18 }, // Downward tilt (~10°) elevated observer view
 
             // Glowing point
             glowingPoint: null,
@@ -497,13 +497,6 @@
                         return { x: 0, y: height / 2, z: 0 };
                 }
             },
-
-            createHexLantern() {
-                document.getElementById('choiceMenu').style.display = 'none';
-                this.placementMode = 'hexlantern';
-                this.startDrawing();
-            },
-
             createCarouselFromDrawing() {
                 const group = new THREE.Group();
                 group.userData.type = 'carousel';
@@ -547,11 +540,11 @@
                 base.castShadow = false; // Base doesn't cast important shadow
                 group.add(base);
 
-                // Central axis (metallic silver)
+                // Central axis (metallic silver) - MUST cast shadow on wall
                 const axisGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 16);
                 const axis = new THREE.Mesh(axisGeometry, baseMaterial);
                 axis.position.y = 1.25;
-                axis.castShadow = false; // Axis doesn't cast important shadow
+                axis.castShadow = true; // Rotation pole MUST cast shadow
                 group.add(axis);
 
                 // Rotating panel group with SHAPE shadows (NOT rectangle!)
@@ -591,117 +584,6 @@
                 group.userData.panelsGroup = panelsGroup;
 
                 return group;
-            },
-
-            createHexLanternFromDrawing() {
-                const group = new THREE.Group();
-                group.userData.type = 'hexlantern';
-                group.userData.rotation = 0;
-                group.userData.angularVelocity = 0;
-                group.userData.currentFrame = 0;
-
-                // Matte material (soft off-white/gold metal) - NOT silver
-                const baseMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xf5e6d3, // Soft off-white with gold tint
-                    metalness: 0.3,
-                    roughness: 0.7 // Matte finish
-                });
-
-                // Base (hexagonal)
-                const baseGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 6);
-                const base = new THREE.Mesh(baseGeometry, baseMaterial);
-                base.position.y = 0.05;
-                base.castShadow = false; // Base doesn't cast important shadow
-                group.add(base);
-
-                // Central axis
-                const axisGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 6);
-                const axis = new THREE.Mesh(axisGeometry, baseMaterial);
-                axis.position.y = 1.25;
-                axis.castShadow = false;
-                group.add(axis);
-
-                // Generate 6 animation frames from user's drawing
-                const frames = this.generateZoetropeFrames(this.drawingPoints, 6);
-
-                // Rotating panel group (6 sides - hexagon)
-                const panelsGroup = new THREE.Group();
-                panelsGroup.position.y = 1.5;
-
-                const numSides = 6;
-                const radius = 0.8;
-
-                for (let i = 0; i < numSides; i++) {
-                    const angle = (i / numSides) * Math.PI * 2;
-
-                    const panelGeometry = new THREE.PlaneGeometry(0.7, 1.5);
-                    const panelMaterial = new THREE.MeshStandardMaterial({
-                        map: frames[i], // Different frame for each panel
-                        side: THREE.DoubleSide,
-                        transparent: true,
-                        alphaTest: 0.1
-                    });
-
-                    const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-                    panel.position.set(
-                        Math.cos(angle) * radius,
-                        0,
-                        Math.sin(angle) * radius
-                    );
-                    panel.rotation.y = angle + Math.PI / 2;
-
-                    // Only first panel casts shadow initially (will cycle in animate)
-                    panel.castShadow = (i === 0);
-                    panel.userData.frameIndex = i;
-
-                    panelsGroup.add(panel);
-                }
-
-                group.add(panelsGroup);
-                group.userData.panelsGroup = panelsGroup;
-
-                return group;
-            },
-
-            generateZoetropeFrames(points, numFrames) {
-                // Generate interpolated frames for zoetrope animation
-                // Creates a pulsing/morphing effect from the original drawing
-                const frames = [];
-
-                for (let i = 0; i < numFrames; i++) {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 512;
-                    canvas.height = 512;
-                    const ctx = canvas.getContext('2d');
-
-                    ctx.clearRect(0, 0, 512, 512);
-                    ctx.fillStyle = 'black';
-
-                    // Calculate scale for this frame (creates pulsing animation)
-                    const t = i / numFrames;
-                    const scale = 0.6 + 0.4 * Math.sin(t * Math.PI * 2); // 60% to 100% scale
-
-                    ctx.save();
-                    ctx.translate(256, 256); // Center
-                    ctx.scale(scale, scale);
-                    ctx.translate(-256, -256);
-
-                    ctx.beginPath();
-                    points.forEach((point, idx) => {
-                        const x = (point.x / 400) * 512;
-                        const y = (point.y / 400) * 512;
-                        if (idx === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    });
-                    ctx.closePath();
-                    ctx.fill();
-
-                    ctx.restore();
-
-                    frames.push(new THREE.CanvasTexture(canvas));
-                }
-
-                return frames;
             },
 
             createSpotlightObject() {
@@ -867,26 +749,51 @@
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
-                // For laser panels, add prismatic edge glow effect
+                // For laser panels, add FULL CHROMATIC DISPERSION layers
+                // Rainbow streaks, interference bands, holographic diffraction
                 if (this.panelMaterial === 'laser') {
+                    // PRIMARY rainbow dispersion layers (like CD/prism/holographic foil)
                     const colors = [
-                        0xff0000, 0xff7f00, 0xffff00, 0x00ff00,
-                        0x00ffff, 0x0000ff, 0x8b00ff
+                        0xff0000, 0xff4500, 0xff8c00, 0xffff00, // Red to Yellow
+                        0x00ff00, 0x00ff7f, 0x00ffff, 0x0080ff, // Green to Cyan to Blue
+                        0x0000ff, 0x4b0082, 0x8b00ff, 0xff00ff  // Blue to Violet to Magenta
                     ];
 
                     colors.forEach((color, i) => {
-                        const edgeMaterial = new THREE.MeshBasicMaterial({
+                        // Create multiple offset layers for chromatic dispersion
+                        const disperseMaterial = new THREE.MeshBasicMaterial({
                             color: color,
                             transparent: true,
-                            opacity: 0.2,
+                            opacity: 0.25, // Stronger visibility
+                            side: THREE.DoubleSide,
+                            blending: THREE.AdditiveBlending // Additive for interference
+                        });
+                        const disperseMesh = new THREE.Mesh(geometry.clone(), disperseMaterial);
+
+                        // Offset in different directions for rainbow spread
+                        const angle = (i / colors.length) * Math.PI * 2;
+                        const offsetX = Math.cos(angle) * 0.02;
+                        const offsetZ = Math.sin(angle) * 0.02;
+                        disperseMesh.position.set(offsetX, 0.75, offsetZ);
+                        disperseMesh.scale.set(1.03 + i * 0.008, 1.03 + i * 0.008, 1);
+                        group.add(disperseMesh);
+                    });
+
+                    // SECONDARY: Shimmering interference bands
+                    const interferenceColors = [0xff00ff, 0x00ffff, 0xffff00];
+                    interferenceColors.forEach((color, i) => {
+                        const interferenceMaterial = new THREE.MeshBasicMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: 0.15,
                             side: THREE.DoubleSide,
                             blending: THREE.AdditiveBlending
                         });
-                        const edgeMesh = new THREE.Mesh(geometry.clone(), edgeMaterial);
-                        const offset = (i - 3) * 0.015;
-                        edgeMesh.position.set(offset, 0.75, offset * 0.5);
-                        edgeMesh.scale.set(1.02 + i * 0.01, 1.02 + i * 0.01, 1);
-                        group.add(edgeMesh);
+                        const interferenceMesh = new THREE.Mesh(geometry.clone(), interferenceMaterial);
+                        const offset = (i - 1) * 0.025;
+                        interferenceMesh.position.set(-offset, 0.75, offset);
+                        interferenceMesh.scale.set(1.06, 1.06, 1);
+                        group.add(interferenceMesh);
                     });
                 }
 
@@ -1075,9 +982,10 @@
             },
 
             updateCameraPosition() {
-                // FIXED elevated camera position: 2.3 meters high, centered
+                // FIXED elevated camera position: 2.4 meters high, centered
                 // Camera CANNOT move - only rotation allowed
-                const cameraY = 2.3; // Elevated height (2.2 - 2.4m range)
+                // "Elevated observer inside gallery" - NOT top-down, NOT floor-level
+                const cameraY = 2.4; // Elevated observer height
                 const cameraX = 0;   // Center of room
                 const cameraZ = 0;   // Center of room
 
