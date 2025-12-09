@@ -207,8 +207,6 @@
             lastMouseX: 0,
             lastMouseY: 0,
             lookRotation: { yaw: 0, pitch: -Math.PI / 36 }, // Slight downward tilt (-5°)
-            maxYawLeft: Math.PI / 9, // +20 degrees
-            maxYawRight: -Math.PI / 9, // -20 degrees
 
             // Glowing point
             glowingPoint: null,
@@ -980,12 +978,16 @@
                 const deltaY = e.clientY - this.lastMouseY;
 
                 if (this.isRotatingView) {
-                    // Allow yaw rotation (left/right) only, limited to ±20°
+                    // Free 360° rotation - no limits
                     this.lookRotation.yaw -= deltaX * 0.003;
-                    this.lookRotation.yaw = Math.max(
-                        this.maxYawRight,
-                        Math.min(this.maxYawLeft, this.lookRotation.yaw)
+
+                    // Vertical rotation (pitch) with limits to prevent flipping
+                    this.lookRotation.pitch -= deltaY * 0.003;
+                    this.lookRotation.pitch = Math.max(
+                        -Math.PI / 2 + 0.1,  // Don't look straight down
+                        Math.min(Math.PI / 2 - 0.1, this.lookRotation.pitch)  // Don't look straight up
                     );
+
                     this.updateCameraPosition();
                 } else if (this.isDragging && (this.selectedObject || this.selectedLight)) {
                     const obj = this.selectedObject || this.selectedLight;
