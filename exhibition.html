@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Light Art Exhibition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .ui-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .ui-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .button {
+            padding: 10px 18px;
+            background: #2c2c2c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .button:hover {
+            background: #404040;
+        }
+
+        .button:last-child {
+            margin-bottom: 0;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .color-swatch {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .color-swatch.selected {
+            border-color: #2c2c2c;
+            box-shadow: 0 0 0 2px white;
+        }
+
+        #drawing-interface {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 200;
+        }
+
+        #drawing-interface.active {
+            display: flex;
+        }
+
+        #drawingCanvas {
+            background: white;
+            cursor: crosshair;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .draw-button {
+            margin-top: 20px;
+            padding: 12px 40px;
+            background: white;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            color: #2c2c2c;
+            letter-spacing: 0.5px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .draw-button:hover {
+            background: #f0f0f0;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="ui-overlay">
+        <div class="ui-panel">
+            <div class="ui-title">Add Objects</div>
+            <button class="button" onclick="app.addCarousel()">+ Carousel</button>
+            <button class="button" onclick="app.startDrawing()">+ Draw Panel</button>
+        </div>
+
+        <div class="ui-panel">
+            <div class="ui-title">Add Spotlight</div>
+            <button class="button" onclick="app.addSpotlight()">+ New Light</button>
+            <div class="ui-title" style="margin-top: 15px;">Light Color</div>
+            <div class="color-grid" id="colorPalette"></div>
+        </div>
+    </div>
+
+    <div id="drawing-interface">
+        <canvas id="drawingCanvas" width="400" height="400"></canvas>
+        <button class="draw-button" onclick="app.finishDrawing()">Create Panel</button>
+    </div>
+
+    <div id="instructions">
+        Drag to rotate camera • Click objects to select • Drag selected objects to move
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const app = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            container: null,
+
+            // Room dimensions
+            roomSize: { width: 20, height: 8, depth: 20 },
+
+            // Objects
+            carousels: [],
+            panels: [],
+            spotlights: [],
+            selectedObject: null,
+            selectedLight: null,
+
+            // Interaction
+            isDragging: false,
+            isRotatingCamera: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            cameraRotation: { theta: Math.PI / 4, phi: Math.PI / 6 },
+            cameraDistance: 25,
+
+            // Drawing
+            drawingCanvas: null,
+            drawingCtx: null,
+            isDrawing: false,
+            drawingPoints: [],
+
+            // Colors
+            lightColors: [
+                '#FFFFFF', '#FFE5B4', '#FFD700', '#FFA500',
+                '#FF6B6B', '#FF1493', '#9370DB', '#6495ED',
+                '#4169E1', '#00CED1', '#00FA9A', '#32CD32'
+            ],
+            currentLightColor: '#FFFFFF',
+
+            init() {
+                this.container = document.getElementById('canvas-container');
+
+                // Setup Three.js
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0a0a0a);
+
+                this.camera = new THREE.PerspectiveCamera(
+                    50,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000
+                );
+                this.updateCameraPosition();
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.container.appendChild(this.renderer.domElement);
+
+                // Setup drawing
+                this.drawingCanvas = document.getElementById('drawingCanvas');
+                this.drawingCtx = this.drawingCanvas.getContext('2d');
+
+                // Build room
+                this.createRoom();
+
+                // Setup color palette
+                this.createColorPalette();
+
+                // Event listeners
+                this.setupEventListeners();
+
+                // Start animation
+                this.animate();
+            },
+
+            createRoom() {
+                const { width, height, depth } = this.roomSize;
+
+                // Floor
+                const floorGeometry = new THREE.PlaneGeometry(width, depth);
+                const floorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xf5f5f5,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.rotation.x = -Math.PI / 2;
+                floor.receiveShadow = true;
+                this.scene.add(floor);
+
+                // Walls
+                const wallMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xfafafa,
+                    roughness: 0.9,
+                    metalness: 0.05
+                });
+
+                // Back wall
+                const backWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(width, height),
+                    wallMaterial
+                );
+                backWall.position.set(0, height / 2, -depth / 2);
+                backWall.receiveShadow = true;
+                this.scene.add(backWall);
+
+                // Left wall
+                const leftWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(depth, height),
+                    wallMaterial
+                );
+                leftWall.position.set(-width / 2, height / 2, 0);
+                leftWall.rotation.y = Math.PI / 2;
+                leftWall.receiveShadow = true;
+                this.scene.add(leftWall);
+
+                // Right wall
+                const rightWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(depth, height),
+                    wallMaterial
+                );
+                rightWall.position.set(width / 2, height / 2, 0);
+                rightWall.rotation.y = -Math.PI / 2;
+                rightWall.receiveShadow = true;
+                this.scene.add(rightWall);
+
+                // Ceiling
+                const ceiling = new THREE.Mesh(
+                    new THREE.PlaneGeometry(width, depth),
+                    wallMaterial
+                );
+                ceiling.position.y = height;
+                ceiling.rotation.x = Math.PI / 2;
+                this.scene.add(ceiling);
+
+                // Ambient light (very dim)
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.15);
+                this.scene.add(ambientLight);
+            },
+
+            addCarousel() {
+                const carousel = this.createCarousel();
+                carousel.position.set(
+                    (Math.random() - 0.5) * 8,
+                    0,
+                    (Math.random() - 0.5) * 8
+                );
+                this.scene.add(carousel);
+                this.carousels.push(carousel);
+            },
+
+            createCarousel() {
+                const group = new THREE.Group();
+                group.userData.type = 'carousel';
+                group.userData.rotation = 0;
+
+                // Base
+                const baseGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
+                const baseMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xd4af37,
+                    metalness: 0.6,
+                    roughness: 0.3
+                });
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 0.05;
+                base.castShadow = true;
+                group.add(base);
+
+                // Stand
+                const standGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2, 16);
+                const stand = new THREE.Mesh(standGeometry, baseMaterial);
+                stand.position.y = 1;
+                stand.castShadow = true;
+                group.add(stand);
+
+                // Top ring
+                const ringGeometry = new THREE.TorusGeometry(0.6, 0.04, 16, 32);
+                const ring = new THREE.Mesh(ringGeometry, baseMaterial);
+                ring.position.y = 2;
+                ring.rotation.x = Math.PI / 2;
+                ring.castShadow = true;
+                group.add(ring);
+                group.userData.ring = ring;
+
+                // Charms (simple rectangles for now)
+                const charmGroup = new THREE.Group();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const charmGeometry = new THREE.PlaneGeometry(0.3, 0.4);
+                    const charmMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x2c2c2c,
+                        side: THREE.DoubleSide
+                    });
+                    const charm = new THREE.Mesh(charmGeometry, charmMaterial);
+                    charm.position.set(
+                        Math.cos(angle) * 0.6,
+                        1.4,
+                        Math.sin(angle) * 0.6
+                    );
+                    charm.castShadow = true;
+                    charmGroup.add(charm);
+                }
+                group.add(charmGroup);
+                group.userData.charms = charmGroup;
+
+                return group;
+            },
+
+            addSpotlight() {
+                const spotlight = this.createSpotlight();
+                spotlight.position.set(
+                    (Math.random() - 0.5) * 10,
+                    0,
+                    (Math.random() - 0.5) * 10
+                );
+                this.scene.add(spotlight);
+                this.spotlights.push(spotlight);
+            },
+
+            createSpotlight() {
+                const group = new THREE.Group();
+                group.userData.type = 'spotlight';
+                group.userData.angle = Math.PI / 6;
+                group.userData.color = this.currentLightColor;
+
+                // Base stand
+                const baseGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 16);
+                const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x2c2c2c });
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 0.025;
+                group.add(base);
+
+                // Light fixture
+                const fixtureGeometry = new THREE.CylinderGeometry(0.08, 0.12, 0.3, 16);
+                const fixture = new THREE.Mesh(fixtureGeometry, baseMaterial);
+                fixture.position.y = 0.3;
+                fixture.rotation.x = -Math.PI / 3;
+                group.add(fixture);
+                group.userData.fixture = fixture;
+
+                // Actual light
+                const color = new THREE.Color(this.currentLightColor);
+                const light = new THREE.SpotLight(color, 2, 30, Math.PI / 6, 0.5, 2);
+                light.position.set(0, 0.4, 0);
+                light.target.position.set(0, 0, -5);
+                light.castShadow = true;
+                light.shadow.mapSize.width = 2048;
+                light.shadow.mapSize.height = 2048;
+                group.add(light);
+                group.add(light.target);
+                group.userData.light = light;
+
+                // Helper (visible beam indicator)
+                const helper = new THREE.SpotLightHelper(light);
+                this.scene.add(helper);
+                group.userData.helper = helper;
+
+                return group;
+            },
+
+            startDrawing() {
+                document.getElementById('drawing-interface').classList.add('active');
+                this.drawingCtx.clearRect(0, 0, 400, 400);
+                this.drawingPoints = [];
+            },
+
+            finishDrawing() {
+                if (this.drawingPoints.length < 3) return;
+
+                const panel = this.createPanelFromDrawing();
+                panel.position.set(
+                    (Math.random() - 0.5) * 8,
+                    0,
+                    (Math.random() - 0.5) * 8
+                );
+                this.scene.add(panel);
+                this.panels.push(panel);
+
+                document.getElementById('drawing-interface').classList.remove('active');
+                this.drawingCtx.clearRect(0, 0, 400, 400);
+                this.drawingPoints = [];
+            },
+
+            createPanelFromDrawing() {
+                // Create canvas texture from drawing
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, 512, 512);
+
+                // Draw the silhouette
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                this.drawingPoints.forEach((point, i) => {
+                    const x = (point.x / 400) * 512;
+                    const y = (point.y / 400) * 512;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+                ctx.fill();
+
+                const texture = new THREE.CanvasTexture(canvas);
+
+                const group = new THREE.Group();
+                group.userData.type = 'panel';
+
+                const geometry = new THREE.PlaneGeometry(2, 2);
+                const material = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide,
+                    transparent: false
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.rotation.x = -Math.PI / 2;
+                mesh.position.y = 1;
+                mesh.castShadow = true;
+                mesh.receiveShadow = false;
+
+                group.add(mesh);
+                return group;
+            },
+
+            createColorPalette() {
+                const palette = document.getElementById('colorPalette');
+                this.lightColors.forEach((color, index) => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.style.backgroundColor = color;
+                    if (index === 0) swatch.classList.add('selected');
+                    swatch.onclick = () => {
+                        document.querySelectorAll('.color-swatch').forEach(s =>
+                            s.classList.remove('selected')
+                        );
+                        swatch.classList.add('selected');
+                        this.currentLightColor = color;
+                        if (this.selectedLight) {
+                            this.selectedLight.userData.color = color;
+                            this.selectedLight.userData.light.color.set(color);
+                        }
+                    };
+                    palette.appendChild(swatch);
+                });
+            },
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.onResize());
+
+                this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
+
+                // Drawing canvas
+                this.drawingCanvas.addEventListener('mousedown', (e) => {
+                    this.isDrawing = true;
+                    const rect = this.drawingCanvas.getBoundingClientRect();
+                    this.drawingPoints = [{
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    }];
+                });
+
+                this.drawingCanvas.addEventListener('mousemove', (e) => {
+                    if (!this.isDrawing) return;
+                    const rect = this.drawingCanvas.getBoundingClientRect();
+                    this.drawingPoints.push({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    });
+                    this.updateDrawing();
+                });
+
+                this.drawingCanvas.addEventListener('mouseup', () => {
+                    this.isDrawing = false;
+                });
+            },
+
+            updateDrawing() {
+                const ctx = this.drawingCtx;
+                ctx.clearRect(0, 0, 400, 400);
+
+                if (this.drawingPoints.length < 2) return;
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.moveTo(this.drawingPoints[0].x, this.drawingPoints[0].y);
+
+                for (let i = 1; i < this.drawingPoints.length; i++) {
+                    ctx.lineTo(this.drawingPoints[i].x, this.drawingPoints[i].y);
+                }
+
+                ctx.closePath();
+                ctx.fill();
+            },
+
+            onMouseDown(e) {
+                const mouse = new THREE.Vector2(
+                    (e.clientX / window.innerWidth) * 2 - 1,
+                    -(e.clientY / window.innerHeight) * 2 + 1
+                );
+
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, this.camera);
+
+                // Check for object selection
+                const allObjects = [...this.carousels, ...this.panels, ...this.spotlights];
+                const intersects = raycaster.intersectObjects(
+                    allObjects.map(o => o.children).flat(),
+                    true
+                );
+
+                if (intersects.length > 0) {
+                    const object = intersects[0].object;
+                    let parent = object;
+                    while (parent.parent && !parent.userData.type) {
+                        parent = parent.parent;
+                    }
+
+                    if (parent.userData.type === 'spotlight') {
+                        this.selectedLight = parent;
+                        this.selectedObject = null;
+                    } else {
+                        this.selectedObject = parent;
+                        this.selectedLight = null;
+                    }
+                    this.isDragging = true;
+                } else {
+                    this.isRotatingCamera = true;
+                    this.selectedObject = null;
+                    this.selectedLight = null;
+                }
+
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            },
+
+            onMouseMove(e) {
+                const deltaX = e.clientX - this.lastMouseX;
+                const deltaY = e.clientY - this.lastMouseY;
+
+                if (this.isRotatingCamera) {
+                    this.cameraRotation.theta -= deltaX * 0.005;
+                    this.cameraRotation.phi = Math.max(
+                        0.1,
+                        Math.min(Math.PI / 2 - 0.1, this.cameraRotation.phi - deltaY * 0.005)
+                    );
+                    this.updateCameraPosition();
+                } else if (this.isDragging && (this.selectedObject || this.selectedLight)) {
+                    // Project mouse to floor plane
+                    const mouse = new THREE.Vector2(
+                        (e.clientX / window.innerWidth) * 2 - 1,
+                        -(e.clientY / window.innerHeight) * 2 + 1
+                    );
+
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, this.camera);
+
+                    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                    const intersection = new THREE.Vector3();
+                    raycaster.ray.intersectPlane(floorPlane, intersection);
+
+                    if (intersection) {
+                        const obj = this.selectedObject || this.selectedLight;
+                        obj.position.x = intersection.x;
+                        obj.position.z = intersection.z;
+                    }
+                }
+
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            },
+
+            onMouseUp() {
+                this.isDragging = false;
+                this.isRotatingCamera = false;
+            },
+
+            updateCameraPosition() {
+                const theta = this.cameraRotation.theta;
+                const phi = this.cameraRotation.phi;
+                const radius = this.cameraDistance;
+
+                this.camera.position.x = radius * Math.sin(phi) * Math.cos(theta);
+                this.camera.position.y = radius * Math.cos(phi);
+                this.camera.position.z = radius * Math.sin(phi) * Math.sin(theta);
+
+                this.camera.lookAt(0, 2, 0);
+            },
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            },
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                // Update spotlight helpers
+                this.spotlights.forEach(spotlight => {
+                    if (spotlight.userData.helper) {
+                        spotlight.userData.helper.update();
+                    }
+                });
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>

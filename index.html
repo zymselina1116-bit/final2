@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Light Art Exhibition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .ui-panel {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .ui-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .button {
+            padding: 10px 18px;
+            background: #2c2c2c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            letter-spacing: 0.3px;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+
+        .button:hover {
+            background: #404040;
+        }
+
+        .button:last-child {
+            margin-bottom: 0;
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .color-swatch {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .color-swatch.selected {
+            border-color: #2c2c2c;
+            box-shadow: 0 0 0 2px white;
+        }
+
+        #drawing-interface {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 200;
+        }
+
+        #drawing-interface.active {
+            display: flex;
+        }
+
+        #drawingCanvas {
+            background: white;
+            cursor: crosshair;
+            box-shadow: 0 0 40px rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        .draw-button {
+            margin-top: 20px;
+            padding: 12px 40px;
+            background: white;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            color: #2c2c2c;
+            letter-spacing: 0.5px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .draw-button:hover {
+            background: #f0f0f0;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="ui-overlay"></div>
+
+    <!-- Choice Menu (appears when clicking glowing point) -->
+    <div id="choiceMenu" style="position: absolute; display: none; flex-direction: column; gap: 12px; padding: 20px; background: rgba(255,255,255,0.95); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 150;">
+        <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; text-align: center;">Add Object</div>
+        <button class="choice-btn" onclick="app.createSpotlight()" style="padding: 12px 24px; background: #2c2c2c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Spotlight</button>
+        <button class="choice-btn" onclick="app.createPanel()" style="padding: 12px 24px; background: #2c2c2c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Panel</button>
+        <button class="choice-btn" onclick="app.createCarousel()" style="padding: 12px 24px; background: #2c2c2c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Carousel</button>
+    </div>
+
+    <div id="drawing-interface">
+        <div style="margin-bottom: 20px; text-align: center;">
+            <div style="font-size: 13px; font-weight: 600; color: white; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Panel Material</div>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button id="materialNormal" class="material-btn" onclick="app.selectPanelMaterial('normal')" style="padding: 10px 24px; background: white; color: #2c2c2c; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">Normal (Cloth)</button>
+                <button id="materialLaser" class="material-btn" onclick="app.selectPanelMaterial('laser')" style="padding: 10px 24px; background: transparent; color: white; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">Laser (Holographic)</button>
+            </div>
+        </div>
+        <canvas id="drawingCanvas" width="400" height="400"></canvas>
+        <button class="draw-button" onclick="app.finishDrawing()">Create Panel</button>
+    </div>
+
+    <div id="instructions">
+        Drag to look around • Click glowing point to add objects • Drag objects to move/rotate
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const app = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            container: null,
+
+            // Room dimensions
+            roomSize: { width: 20, height: 12, depth: 20 }, // Taller ceiling for gallery feel
+
+            // Objects
+            carousels: [],
+            panels: [],
+            spotlights: [],
+            selectedObject: null,
+            selectedLight: null,
+            placementMode: null, // 'carousel' or 'panel'
+            placementIndicator: null,
+
+            // Interaction
+            isDragging: false,
+            isRotatingView: false,
+            lastMouseX: 0,
+            lastMouseY: 0,
+            lookRotation: { yaw: 0, pitch: -Math.PI / 36 }, // Slight downward tilt (-5°)
+            maxYawLeft: Math.PI / 9, // +20 degrees
+            maxYawRight: -Math.PI / 9, // -20 degrees
+
+            // Glowing point
+            glowingPoint: null,
+            glowingPointPosition: new THREE.Vector3(0, 0, 0),
+
+            // Drawing
+            drawingCanvas: null,
+            drawingCtx: null,
+            isDrawing: false,
+            drawingPoints: [],
+            panelMaterial: 'normal', // 'normal' or 'laser'
+
+            // Colors
+            lightColors: [
+                '#FFFFFF', '#FFE5B4', '#FFD700', '#FFA500',
+                '#FF6B6B', '#FF1493', '#9370DB', '#6495ED',
+                '#4169E1', '#00CED1', '#00FA9A', '#32CD32'
+            ],
+            currentLightColor: '#FFFFFF',
+
+            init() {
+                this.container = document.getElementById('canvas-container');
+
+                // Setup Three.js
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0a0a0a);
+
+                this.camera = new THREE.PerspectiveCamera(
+                    50,
+                    window.innerWidth / window.innerHeight,
+                    0.1,
+                    1000
+                );
+                this.updateCameraPosition();
+
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.container.appendChild(this.renderer.domElement);
+
+                // Setup drawing
+                this.drawingCanvas = document.getElementById('drawingCanvas');
+                this.drawingCtx = this.drawingCanvas.getContext('2d');
+
+                // Build room
+                this.createRoom();
+
+                // Create glowing point
+                this.createGlowingPoint();
+
+                // Event listeners
+                this.setupEventListeners();
+
+                // Start animation
+                this.animate();
+            },
+
+            createRoom() {
+                const { width, height, depth } = this.roomSize;
+
+                // Floor
+                const floorGeometry = new THREE.PlaneGeometry(width, depth);
+                const floorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xf5f5f5,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+                const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                floor.rotation.x = -Math.PI / 2;
+                floor.receiveShadow = true;
+                this.scene.add(floor);
+
+                // Walls
+                const wallMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xfafafa,
+                    roughness: 0.9,
+                    metalness: 0.05
+                });
+
+                // Back wall
+                const backWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(width, height),
+                    wallMaterial
+                );
+                backWall.position.set(0, height / 2, -depth / 2);
+                backWall.receiveShadow = true;
+                this.scene.add(backWall);
+
+                // Left wall
+                const leftWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(depth, height),
+                    wallMaterial
+                );
+                leftWall.position.set(-width / 2, height / 2, 0);
+                leftWall.rotation.y = Math.PI / 2;
+                leftWall.receiveShadow = true;
+                this.scene.add(leftWall);
+
+                // Right wall
+                const rightWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(depth, height),
+                    wallMaterial
+                );
+                rightWall.position.set(width / 2, height / 2, 0);
+                rightWall.rotation.y = -Math.PI / 2;
+                rightWall.receiveShadow = true;
+                this.scene.add(rightWall);
+
+                // Ceiling
+                const ceiling = new THREE.Mesh(
+                    new THREE.PlaneGeometry(width, depth),
+                    wallMaterial
+                );
+                ceiling.position.y = height;
+                ceiling.rotation.x = Math.PI / 2;
+                this.scene.add(ceiling);
+
+                // Ambient light (soft but visible for white gallery)
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                this.scene.add(ambientLight);
+
+                // Add a default white spotlight
+                const defaultSpotlight = this.createSpotlightObject();
+                defaultSpotlight.position.set(-2, 0, 0);
+                this.scene.add(defaultSpotlight);
+                this.spotlights.push(defaultSpotlight);
+            },
+
+            getWallFacing() {
+                // Determine which wall user is looking at based on camera direction
+                const lookX = Math.cos(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
+                const lookY = Math.sin(this.lookRotation.pitch);
+                const lookZ = Math.sin(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
+
+                // Don't spawn if looking at floor or ceiling
+                if (Math.abs(lookY) > 0.7) {
+                    return null; // Looking too far up or down
+                }
+
+                // Determine which wall based on strongest horizontal component
+                const absX = Math.abs(lookX);
+                const absZ = Math.abs(lookZ);
+
+                if (absX > absZ) {
+                    // Looking more in X direction
+                    return lookX > 0 ? 'right' : 'left';
+                } else {
+                    // Looking more in Z direction
+                    return lookZ > 0 ? 'front' : 'back';
+                }
+            },
+
+            getPositionForWall(wall) {
+                // Get spawn position in front of the specified wall
+                const { width, depth } = this.roomSize;
+                const distance = 3; // Distance from wall
+
+                switch (wall) {
+                    case 'back':
+                        return { x: 0, z: -depth / 2 + distance, rotation: 0 };
+                    case 'front':
+                        return { x: 0, z: depth / 2 - distance, rotation: Math.PI };
+                    case 'left':
+                        return { x: -width / 2 + distance, z: 0, rotation: Math.PI / 2 };
+                    case 'right':
+                        return { x: width / 2 - distance, z: 0, rotation: -Math.PI / 2 };
+                    default:
+                        return { x: 0, z: 0, rotation: 0 };
+                }
+            },
+
+            createGlowingPoint() {
+                // Pulsing white glowing point on floor
+                const geometry = new THREE.SphereGeometry(0.15, 32, 32);
+                const material = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    emissive: 0xffffff,
+                    emissiveIntensity: 1,
+                    metalness: 0,
+                    roughness: 0.2
+                });
+                this.glowingPoint = new THREE.Mesh(geometry, material);
+                this.glowingPoint.position.set(0, 0.15, 2); // In front of camera
+                this.glowingPoint.userData.type = 'glowingPoint';
+                this.scene.add(this.glowingPoint);
+
+                // Add glow effect
+                const glowGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                this.glowingPoint.add(glow);
+            },
+
+
+            createCarousel() {
+                document.getElementById('choiceMenu').style.display = 'none';
+                this.placementMode = 'carousel';
+                this.startDrawing();
+            },
+
+            createPanel() {
+                document.getElementById('choiceMenu').style.display = 'none';
+                this.placementMode = 'panel';
+                this.panelMaterial = 'normal'; // Reset to default
+                this.updateMaterialButtons();
+                this.startDrawing();
+            },
+
+            selectPanelMaterial(material) {
+                this.panelMaterial = material;
+                this.updateMaterialButtons();
+            },
+
+            updateMaterialButtons() {
+                const normalBtn = document.getElementById('materialNormal');
+                const laserBtn = document.getElementById('materialLaser');
+
+                if (this.panelMaterial === 'normal') {
+                    normalBtn.style.background = 'white';
+                    normalBtn.style.color = '#2c2c2c';
+                    laserBtn.style.background = 'transparent';
+                    laserBtn.style.color = 'white';
+                } else {
+                    normalBtn.style.background = 'transparent';
+                    normalBtn.style.color = 'white';
+                    laserBtn.style.background = 'white';
+                    laserBtn.style.color = '#2c2c2c';
+                }
+            },
+
+            createSpotlight() {
+                document.getElementById('choiceMenu').style.display = 'none';
+
+                const spotlight = this.createSpotlightObject();
+
+                // Position on floor in center-front area
+                spotlight.position.set(
+                    (Math.random() - 0.5) * 4,
+                    0,
+                    -2 + (Math.random() - 0.5) * 2
+                );
+
+                this.scene.add(spotlight);
+                this.spotlights.push(spotlight);
+            },
+
+            getWallTargetPosition(wall) {
+                // Get position on the wall to aim spotlight at
+                const { width, height, depth } = this.roomSize;
+
+                switch (wall) {
+                    case 'back':
+                        return { x: 0, y: height / 2, z: -depth / 2 };
+                    case 'front':
+                        return { x: 0, y: height / 2, z: depth / 2 };
+                    case 'left':
+                        return { x: -width / 2, y: height / 2, z: 0 };
+                    case 'right':
+                        return { x: width / 2, y: height / 2, z: 0 };
+                    default:
+                        return { x: 0, y: height / 2, z: 0 };
+                }
+            },
+
+            createHexLantern() {
+                document.getElementById('choiceMenu').style.display = 'none';
+                this.placementMode = 'hexlantern';
+                this.startDrawing();
+            },
+
+            createCarouselFromDrawing() {
+                // Create texture from drawing with transparency
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+
+                ctx.clearRect(0, 0, 512, 512);
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                this.drawingPoints.forEach((point, i) => {
+                    const x = (point.x / 400) * 512;
+                    const y = (point.y / 400) * 512;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+                ctx.fill();
+
+                const texture = new THREE.CanvasTexture(canvas);
+
+                const group = new THREE.Group();
+                group.userData.type = 'carousel';
+                group.userData.rotation = 0;
+                group.userData.angularVelocity = 0;
+
+                // Base (metallic silver)
+                const baseGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 32);
+                const baseMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xc0c0c0,
+                    metalness: 0.9,
+                    roughness: 0.2
+                });
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 0.05;
+                base.castShadow = true;
+                group.add(base);
+
+                // Central axis (metallic silver)
+                const axisGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 16);
+                const axis = new THREE.Mesh(axisGeometry, baseMaterial);
+                axis.position.y = 1.25;
+                axis.castShadow = true;
+                group.add(axis);
+
+                // Rotating panel group (shadow wheel)
+                const panelsGroup = new THREE.Group();
+                panelsGroup.position.y = 1.5;
+
+                const numPanels = 8;
+                const radius = 1.2;
+
+                for (let i = 0; i < numPanels; i++) {
+                    const angle = (i / numPanels) * Math.PI * 2;
+
+                    const panelGeometry = new THREE.PlaneGeometry(0.8, 1.5);
+                    const panelMaterial = new THREE.MeshStandardMaterial({
+                        map: texture.clone(),
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        alphaTest: 0.1
+                    });
+
+                    const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+                    panel.position.set(
+                        Math.cos(angle) * radius,
+                        0,
+                        Math.sin(angle) * radius
+                    );
+                    panel.rotation.y = angle + Math.PI / 2;
+                    panel.castShadow = true;
+
+                    panelsGroup.add(panel);
+                }
+
+                group.add(panelsGroup);
+                group.userData.panelsGroup = panelsGroup;
+
+                return group;
+            },
+
+            createHexLanternFromDrawing() {
+                const group = new THREE.Group();
+                group.userData.type = 'hexlantern';
+                group.userData.rotation = 0;
+                group.userData.angularVelocity = 0;
+                group.userData.currentFrame = 0;
+
+                // Matte material (soft off-white/gold metal) - NOT silver
+                const baseMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xf5e6d3, // Soft off-white with gold tint
+                    metalness: 0.3,
+                    roughness: 0.7 // Matte finish
+                });
+
+                // Base (hexagonal)
+                const baseGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.1, 6);
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 0.05;
+                base.castShadow = false; // Base doesn't cast important shadow
+                group.add(base);
+
+                // Central axis
+                const axisGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 6);
+                const axis = new THREE.Mesh(axisGeometry, baseMaterial);
+                axis.position.y = 1.25;
+                axis.castShadow = false;
+                group.add(axis);
+
+                // Generate 6 animation frames from user's drawing
+                const frames = this.generateZoetropeFrames(this.drawingPoints, 6);
+
+                // Rotating panel group (6 sides - hexagon)
+                const panelsGroup = new THREE.Group();
+                panelsGroup.position.y = 1.5;
+
+                const numSides = 6;
+                const radius = 0.8;
+
+                for (let i = 0; i < numSides; i++) {
+                    const angle = (i / numSides) * Math.PI * 2;
+
+                    const panelGeometry = new THREE.PlaneGeometry(0.7, 1.5);
+                    const panelMaterial = new THREE.MeshStandardMaterial({
+                        map: frames[i], // Different frame for each panel
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        alphaTest: 0.1
+                    });
+
+                    const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+                    panel.position.set(
+                        Math.cos(angle) * radius,
+                        0,
+                        Math.sin(angle) * radius
+                    );
+                    panel.rotation.y = angle + Math.PI / 2;
+
+                    // Only first panel casts shadow initially (will cycle in animate)
+                    panel.castShadow = (i === 0);
+                    panel.userData.frameIndex = i;
+
+                    panelsGroup.add(panel);
+                }
+
+                group.add(panelsGroup);
+                group.userData.panelsGroup = panelsGroup;
+
+                return group;
+            },
+
+            generateZoetropeFrames(points, numFrames) {
+                // Generate interpolated frames for zoetrope animation
+                // Creates a pulsing/morphing effect from the original drawing
+                const frames = [];
+
+                for (let i = 0; i < numFrames; i++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+
+                    ctx.clearRect(0, 0, 512, 512);
+                    ctx.fillStyle = 'black';
+
+                    // Calculate scale for this frame (creates pulsing animation)
+                    const t = i / numFrames;
+                    const scale = 0.6 + 0.4 * Math.sin(t * Math.PI * 2); // 60% to 100% scale
+
+                    ctx.save();
+                    ctx.translate(256, 256); // Center
+                    ctx.scale(scale, scale);
+                    ctx.translate(-256, -256);
+
+                    ctx.beginPath();
+                    points.forEach((point, idx) => {
+                        const x = (point.x / 400) * 512;
+                        const y = (point.y / 400) * 512;
+                        if (idx === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.restore();
+
+                    frames.push(new THREE.CanvasTexture(canvas));
+                }
+
+                return frames;
+            },
+
+            createSpotlightObject() {
+                const group = new THREE.Group();
+                group.userData.type = 'spotlight';
+                group.userData.angle = Math.PI / 6;
+
+                // Base stand (dark metal)
+                const baseGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.05, 16);
+                const baseMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x1a1a1a,
+                    metalness: 0.5,
+                    roughness: 0.5
+                });
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 0.025;
+                group.add(base);
+
+                // Light fixture
+                const fixtureGeometry = new THREE.CylinderGeometry(0.08, 0.12, 0.3, 16);
+                const fixture = new THREE.Mesh(fixtureGeometry, baseMaterial);
+                fixture.position.y = 0.3;
+                fixture.rotation.x = -Math.PI / 3;
+                group.add(fixture);
+                group.userData.fixture = fixture;
+
+                // Pure WHITE spotlight (no colors)
+                const light = new THREE.SpotLight(0xffffff, 3, 40, Math.PI / 5, 0.8, 2);
+                light.position.set(0, 0.4, 0);
+                light.target.position.set(0, 0, -5);
+                light.castShadow = true;
+                light.shadow.mapSize.width = 2048;
+                light.shadow.mapSize.height = 2048;
+                light.shadow.bias = -0.0001;
+                group.add(light);
+                group.add(light.target);
+                group.userData.light = light;
+
+                // NO helper - no visible rays
+                group.userData.helper = null;
+
+                return group;
+            },
+
+            startDrawing() {
+                document.getElementById('drawing-interface').classList.add('active');
+                this.drawingCtx.clearRect(0, 0, 400, 400);
+                this.drawingPoints = [];
+            },
+
+            finishDrawing() {
+                if (this.drawingPoints.length < 3) return;
+
+                // Place objects in front of camera
+                const position = { x: 0, z: 2, rotation: 0 };
+
+                if (this.placementMode === 'carousel') {
+                    const carousel = this.createCarouselFromDrawing();
+                    carousel.position.set(position.x, 0, position.z);
+                    carousel.rotation.y = position.rotation;
+                    this.scene.add(carousel);
+                    this.carousels.push(carousel);
+                } else if (this.placementMode === 'panel') {
+                    const panel = this.createPanelFromDrawing();
+                    panel.position.set(position.x, 0, position.z);
+                    panel.rotation.y = position.rotation;
+                    this.scene.add(panel);
+                    this.panels.push(panel);
+                }
+
+                this.placementMode = null;
+                document.getElementById('drawing-interface').classList.remove('active');
+                this.drawingCtx.clearRect(0, 0, 400, 400);
+                this.drawingPoints = [];
+            },
+
+            createPanelFromDrawing() {
+                // Create canvas texture with transparency (cutout stencil)
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+
+                // Start with fully transparent canvas
+                ctx.clearRect(0, 0, 512, 512);
+
+                // Draw ONLY the silhouette as opaque black
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                this.drawingPoints.forEach((point, i) => {
+                    const x = (point.x / 400) * 512;
+                    const y = (point.y / 400) * 512;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+                ctx.fill();
+
+                const texture = new THREE.CanvasTexture(canvas);
+
+                const group = new THREE.Group();
+                group.userData.type = 'panel';
+                group.userData.material = this.panelMaterial;
+
+                // REDUCED SIZE: 1.5 x 1.5 (50% of original 3x3)
+                const geometry = new THREE.PlaneGeometry(1.5, 1.5);
+
+                // Material based on selection
+                let material;
+                if (this.panelMaterial === 'laser') {
+                    // Holographic laser material with rainbow diffraction
+                    material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        alphaTest: 0.1,
+                        opacity: 0.9,
+                        metalness: 1.0,
+                        roughness: 0.0,
+                        emissive: 0xff00ff, // Magenta for holographic effect
+                        emissiveIntensity: 0.5
+                    });
+                } else {
+                    // Normal translucent cloth material
+                    material = new THREE.MeshStandardMaterial({
+                        map: texture,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        alphaTest: 0.1,
+                        opacity: 1.0,
+                        metalness: 0.0,
+                        roughness: 0.8
+                    });
+                }
+
+                const mesh = new THREE.Mesh(geometry, material);
+                // VERTICAL panel (90° perpendicular to floor)
+                mesh.position.y = 0.75; // Adjusted for smaller size (half of 1.5)
+                mesh.castShadow = true;
+                mesh.receiveShadow = false;
+
+                group.add(mesh);
+                group.userData.mesh = mesh;
+
+                // For laser panels, add rainbow glow layers
+                if (this.panelMaterial === 'laser') {
+                    // Add multiple colored glow meshes for rainbow effect
+                    const colors = [
+                        0xff0000, // Red
+                        0xff7f00, // Orange
+                        0xffff00, // Yellow
+                        0x00ff00, // Green
+                        0x0000ff, // Blue
+                        0x8b00ff  // Violet
+                    ];
+
+                    colors.forEach((color, i) => {
+                        const glowMaterial = new THREE.MeshBasicMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: 0.15,
+                            side: THREE.DoubleSide
+                        });
+                        const glowMesh = new THREE.Mesh(geometry, glowMaterial);
+                        const offset = (i - 2.5) * 0.02; // Spread out the layers
+                        glowMesh.position.set(offset, 0.75, offset);
+                        glowMesh.scale.set(1.05, 1.05, 1.05);
+                        group.add(glowMesh);
+                    });
+                }
+
+                return group;
+            },
+
+            createColorPalette() {
+                const palette = document.getElementById('colorPalette');
+                this.lightColors.forEach((color, index) => {
+                    const swatch = document.createElement('div');
+                    swatch.className = 'color-swatch';
+                    swatch.style.backgroundColor = color;
+                    if (index === 0) swatch.classList.add('selected');
+                    swatch.onclick = () => {
+                        document.querySelectorAll('.color-swatch').forEach(s =>
+                            s.classList.remove('selected')
+                        );
+                        swatch.classList.add('selected');
+                        this.currentLightColor = color;
+                        if (this.selectedLight) {
+                            this.selectedLight.userData.color = color;
+                            this.selectedLight.userData.light.color.set(color);
+                        }
+                    };
+                    palette.appendChild(swatch);
+                });
+            },
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.onResize());
+
+                this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
+
+                // Drawing canvas
+                this.drawingCanvas.addEventListener('mousedown', (e) => {
+                    this.isDrawing = true;
+                    const rect = this.drawingCanvas.getBoundingClientRect();
+                    this.drawingPoints = [{
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    }];
+                });
+
+                this.drawingCanvas.addEventListener('mousemove', (e) => {
+                    if (!this.isDrawing) return;
+                    const rect = this.drawingCanvas.getBoundingClientRect();
+                    this.drawingPoints.push({
+                        x: e.clientX - rect.left,
+                        y: e.clientY - rect.top
+                    });
+                    this.updateDrawing();
+                });
+
+                this.drawingCanvas.addEventListener('mouseup', () => {
+                    this.isDrawing = false;
+                });
+            },
+
+            updateDrawing() {
+                const ctx = this.drawingCtx;
+                ctx.clearRect(0, 0, 400, 400);
+
+                if (this.drawingPoints.length < 2) return;
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.moveTo(this.drawingPoints[0].x, this.drawingPoints[0].y);
+
+                for (let i = 1; i < this.drawingPoints.length; i++) {
+                    ctx.lineTo(this.drawingPoints[i].x, this.drawingPoints[i].y);
+                }
+
+                ctx.closePath();
+                ctx.fill();
+            },
+
+            onMouseDown(e) {
+                const mouse = new THREE.Vector2(
+                    (e.clientX / window.innerWidth) * 2 - 1,
+                    -(e.clientY / window.innerHeight) * 2 + 1
+                );
+
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, this.camera);
+
+                // Check for glowing point click
+                if (this.glowingPoint) {
+                    const glowIntersects = raycaster.intersectObject(this.glowingPoint, true);
+                    if (glowIntersects.length > 0) {
+                        // Show choice menu
+                        const menu = document.getElementById('choiceMenu');
+                        menu.style.display = 'flex';
+                        menu.style.left = e.clientX + 'px';
+                        menu.style.top = e.clientY + 'px';
+                        this.glowingPointPosition.copy(this.glowingPoint.position);
+                        return;
+                    }
+                }
+
+                // Check for object selection
+                const allObjects = [...this.carousels, ...this.panels, ...this.spotlights];
+                const intersects = raycaster.intersectObjects(
+                    allObjects.map(o => o.children).flat(),
+                    true
+                );
+
+                if (intersects.length > 0) {
+                    const object = intersects[0].object;
+                    let parent = object;
+                    while (parent.parent && !parent.userData.type) {
+                        parent = parent.parent;
+                    }
+
+                    if (parent.userData.type === 'spotlight') {
+                        this.selectedLight = parent;
+                        this.selectedObject = null;
+                    } else if (parent.userData.type !== 'glowingPoint') {
+                        this.selectedObject = parent;
+                        this.selectedLight = null;
+                    }
+                    this.isDragging = true;
+                } else {
+                    this.isRotatingView = true;
+                    this.selectedObject = null;
+                    this.selectedLight = null;
+                }
+
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            },
+
+            onMouseMove(e) {
+                const deltaX = e.clientX - this.lastMouseX;
+                const deltaY = e.clientY - this.lastMouseY;
+
+                if (this.isRotatingView) {
+                    // Allow yaw rotation (left/right) only, limited to ±20°
+                    this.lookRotation.yaw -= deltaX * 0.003;
+                    this.lookRotation.yaw = Math.max(
+                        this.maxYawRight,
+                        Math.min(this.maxYawLeft, this.lookRotation.yaw)
+                    );
+                    this.updateCameraPosition();
+                } else if (this.isDragging && (this.selectedObject || this.selectedLight)) {
+                    const obj = this.selectedObject || this.selectedLight;
+
+                    // Handle carousel rotation with deltaX
+                    if (obj.userData.type === 'carousel') {
+                        // Add angular velocity based on horizontal drag
+                        obj.userData.angularVelocity = deltaX * 0.003;
+                    }
+
+                    // Project mouse to floor plane for repositioning
+                    const mouse = new THREE.Vector2(
+                        (e.clientX / window.innerWidth) * 2 - 1,
+                        -(e.clientY / window.innerHeight) * 2 + 1
+                    );
+
+                    const raycaster = new THREE.Raycaster();
+                    raycaster.setFromCamera(mouse, this.camera);
+
+                    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+                    const intersection = new THREE.Vector3();
+                    raycaster.ray.intersectPlane(floorPlane, intersection);
+
+                    if (intersection && Math.abs(deltaY) > Math.abs(deltaX)) {
+                        // Only move if vertical drag is dominant (prevents moving while rotating)
+                        obj.position.x = intersection.x;
+                        obj.position.z = intersection.z;
+                    }
+                }
+
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            },
+
+            onMouseUp() {
+                this.isDragging = false;
+                this.isRotatingView = false;
+            },
+
+            updateCameraPosition() {
+                // Eye-level camera (human standing in gallery)
+                // Pulled back from center, slight downward tilt
+                const cameraY = 1.6; // Eye level
+                const cameraZ = 8; // Pulled back from center
+
+                this.camera.position.set(0, cameraY, cameraZ);
+
+                // Calculate look direction from yaw and pitch
+                const lookX = Math.cos(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
+                const lookY = Math.sin(this.lookRotation.pitch);
+                const lookZ = Math.sin(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
+
+                // Set camera to look in that direction
+                this.camera.lookAt(
+                    this.camera.position.x + lookX,
+                    this.camera.position.y + lookY,
+                    this.camera.position.z + lookZ
+                );
+            },
+
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            },
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+
+                const time = Date.now() * 0.001;
+
+                // Pulsing glow on glowing point
+                if (this.glowingPoint) {
+                    const pulse = Math.sin(time * 2) * 0.3 + 0.7;
+                    this.glowingPoint.material.emissiveIntensity = pulse * 1.2;
+                    this.glowingPoint.scale.set(pulse, pulse, pulse);
+                }
+
+                // Update carousel rotations with friction
+                this.carousels.forEach(carousel => {
+                    if (carousel.userData.panelsGroup && carousel.userData.angularVelocity) {
+                        carousel.userData.panelsGroup.rotation.y += carousel.userData.angularVelocity;
+
+                        // Apply friction (gradual slowdown)
+                        carousel.userData.angularVelocity *= 0.96;
+                        // Stop when very slow
+                        if (Math.abs(carousel.userData.angularVelocity) < 0.0001) {
+                            carousel.userData.angularVelocity = 0;
+                        }
+                    }
+                });
+
+                this.renderer.render(this.scene, this.camera);
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+        });
+    </script>
+</body>
+</html>
