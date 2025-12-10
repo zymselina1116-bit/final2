@@ -243,17 +243,22 @@
                 );
                 this.updateCameraPosition();
 
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer = new THREE.WebGLRenderer({
+                    antialias: true,
+                    logarithmicDepthBuffer: true // Better depth precision for multi-layer shadows
+                });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
 
                 // PHOTOGRAPHIC TONE MAPPING - soft filmic look, avoid crushing blacks
                 this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
                 this.renderer.toneMappingExposure = 1.0; // Natural exposure
 
-                // ENHANCED shadow rendering for visible, sharp shadows
+                // MULTI-LAYER SHADOW COMPOSITING - all objects contribute to shadows
+                // PCFSoftShadowMap naturally supports multiple shadow layers
                 this.renderer.shadowMap.enabled = true;
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 this.renderer.shadowMap.autoUpdate = true;
+                this.renderer.shadowMap.needsUpdate = true;
 
                 this.container.appendChild(this.renderer.domElement);
 
@@ -979,8 +984,18 @@
 
                     if (intersection && Math.abs(deltaY) > Math.abs(deltaX)) {
                         // Only move if vertical drag is dominant (prevents moving while rotating)
-                        obj.position.x = intersection.x;
-                        obj.position.z = intersection.z;
+                        // CLAMP positions to stay within room boundaries
+                        const { width, depth } = this.roomSize;
+                        const margin = 0.5; // Small margin from walls
+
+                        obj.position.x = Math.max(
+                            -width / 2 + margin,
+                            Math.min(width / 2 - margin, intersection.x)
+                        );
+                        obj.position.z = Math.max(
+                            -depth / 2 + margin,
+                            Math.min(depth / 2 - margin, intersection.z)
+                        );
                     }
                 }
 
