@@ -781,7 +781,10 @@
                 // VERTICAL panel standing on floor
                 mesh.position.y = 0.75;
                 mesh.rotation.x = 0; // Face forward
-                mesh.castShadow = true;
+
+                // CRITICAL: LASER panels do NOT cast regular shadows (shadow = rainbow light projection only)
+                // NORMAL panels cast regular grey shadows
+                mesh.castShadow = (this.panelMaterial !== 'laser');
                 mesh.receiveShadow = false;
 
                 group.add(mesh);
