@@ -787,90 +787,148 @@
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
-                // LASER CHROMATIC SHADOW - living, breathing rainbow diffraction
-                // Core: faint translucent silhouette + perimeter: dynamic rainbow halos
+                // ═══════════════════════════════════════════════════════════════
+                // LASER SHADOW = RAINBOW LIGHT PROJECTION (NOT DARKNESS!)
+                // ═══════════════════════════════════════════════════════════════
+                // The "shadow" of a LASER panel is treated as colorful light projection
+                // Visual reference: light passing through holographic foil or diffraction grating
+                // ZERO grey/black tones - only vivid spectral colors
+                // ═══════════════════════════════════════════════════════════════
                 if (this.panelMaterial === 'laser') {
-                    // CORE SILHOUETTE - soft, translucent base
-                    const coreMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xcccccc,
-                        transparent: true,
-                        opacity: 0.15, // Very faint core
-                        side: THREE.DoubleSide
-                    });
-                    const coreMesh = new THREE.Mesh(geometry.clone(), coreMaterial);
-                    coreMesh.position.y = 0.75;
-                    group.add(coreMesh);
+                    // ─────────────────────────────────────────────────────────────
+                    // DENSE MULTICOLOR INTERFERENCE BANDS
+                    // ─────────────────────────────────────────────────────────────
+                    // Create many overlapping layers of vivid spectral colors
+                    // These fill the entire silhouette with rainbow light, not darkness
 
-                    // RAINBOW HALOS - shifting chromatic edges (cyan, magenta, yellow, violet)
-                    const rainbowHalos = [
-                        { color: 0x00ffff, scale: 1.15 }, // Cyan outer
-                        { color: 0xff00ff, scale: 1.12 }, // Magenta
-                        { color: 0xffff00, scale: 1.09 }, // Yellow
-                        { color: 0x8b00ff, scale: 1.06 }, // Violet
-                        { color: 0xff69b4, scale: 1.04 }, // Pink
-                        { color: 0x00ff7f, scale: 1.02 }  // Spring green
+                    // Primary spectrum bands - dense interference pattern
+                    const spectrumBands = [
+                        // First wave - pure spectrum
+                        { color: 0xff0000, opacity: 0.6, scale: 1.00, offset: 0.00 },  // Red
+                        { color: 0xff8c00, opacity: 0.6, scale: 1.00, offset: 0.01 },  // Orange
+                        { color: 0xffff00, opacity: 0.6, scale: 1.00, offset: 0.02 },  // Yellow
+                        { color: 0x00ff00, opacity: 0.6, scale: 1.00, offset: 0.03 },  // Green
+                        { color: 0x00ffff, opacity: 0.6, scale: 1.00, offset: 0.04 },  // Cyan
+                        { color: 0x0080ff, opacity: 0.6, scale: 1.00, offset: 0.05 },  // Blue
+                        { color: 0x8000ff, opacity: 0.6, scale: 1.00, offset: 0.06 },  // Violet
+                        { color: 0xff00ff, opacity: 0.6, scale: 1.00, offset: 0.07 },  // Magenta
+
+                        // Second wave - shifted interference
+                        { color: 0xff0080, opacity: 0.5, scale: 1.02, offset: 0.015 }, // Pink-red
+                        { color: 0xffff80, opacity: 0.5, scale: 1.02, offset: 0.025 }, // Light yellow
+                        { color: 0x80ff80, opacity: 0.5, scale: 1.02, offset: 0.035 }, // Light green
+                        { color: 0x80ffff, opacity: 0.5, scale: 1.02, offset: 0.045 }, // Light cyan
+                        { color: 0x8080ff, opacity: 0.5, scale: 1.02, offset: 0.055 }, // Light blue
+                        { color: 0xff80ff, opacity: 0.5, scale: 1.02, offset: 0.065 }, // Light magenta
+
+                        // Third wave - neon accents
+                        { color: 0x00ffff, opacity: 0.7, scale: 1.04, offset: 0.02 },  // Neon cyan
+                        { color: 0xff00ff, opacity: 0.7, scale: 1.04, offset: 0.04 },  // Neon magenta
+                        { color: 0xffff00, opacity: 0.7, scale: 1.04, offset: 0.06 },  // Neon yellow
                     ];
 
-                    rainbowHalos.forEach(({color, scale}) => {
-                        const haloMaterial = new THREE.MeshBasicMaterial({
+                    spectrumBands.forEach(({color, opacity, scale, offset}) => {
+                        const bandMaterial = new THREE.MeshBasicMaterial({
                             color: color,
                             transparent: true,
-                            opacity: 0.35, // Strong chromatic edges
+                            opacity: opacity,
                             side: THREE.DoubleSide,
-                            blending: THREE.AdditiveBlending
+                            blending: THREE.AdditiveBlending  // Colors add together like light
                         });
-                        const haloMesh = new THREE.Mesh(geometry.clone(), haloMaterial);
-                        haloMesh.position.y = 0.75;
-                        haloMesh.scale.set(scale, scale, 1);
-                        group.add(haloMesh);
+                        const bandMesh = new THREE.Mesh(geometry.clone(), bandMaterial);
+                        bandMesh.position.set(offset, 0.75, offset);
+                        bandMesh.scale.set(scale, scale, 1);
+                        group.add(bandMesh);
                     });
 
-                    // SPECTRAL GRADIENTS - rippling outward like CD interference
-                    const spectralColors = [
-                        0xff0000, 0xff8c00, 0xffff00, 0x00ff00, // Red→Orange→Yellow→Green
-                        0x00ffff, 0x0000ff, 0x8b00ff, 0xff00ff  // Cyan→Blue→Violet→Magenta
+                    // ─────────────────────────────────────────────────────────────
+                    // CHROMATIC RAYS - spectrum separation
+                    // ─────────────────────────────────────────────────────────────
+                    // Create radial rays emanating from center like diffraction grating
+                    const rayColors = [
+                        0xff0000, 0xff4000, 0xff8000, 0xffbf00, 0xffff00,  // Red to yellow
+                        0xbfff00, 0x80ff00, 0x40ff00, 0x00ff00,            // Yellow to green
+                        0x00ff40, 0x00ff80, 0x00ffbf, 0x00ffff,            // Green to cyan
+                        0x00bfff, 0x0080ff, 0x0040ff, 0x0000ff,            // Cyan to blue
+                        0x4000ff, 0x8000ff, 0xbf00ff, 0xff00ff,            // Blue to magenta
+                        0xff00bf, 0xff0080, 0xff0040                       // Magenta to red
                     ];
 
-                    spectralColors.forEach((color, i) => {
-                        const spectralMaterial = new THREE.MeshBasicMaterial({
+                    rayColors.forEach((color, i) => {
+                        const angle = (i / rayColors.length) * Math.PI * 2;
+                        const rayMaterial = new THREE.MeshBasicMaterial({
                             color: color,
                             transparent: true,
-                            opacity: 0.25,
+                            opacity: 0.4,
                             side: THREE.DoubleSide,
                             blending: THREE.AdditiveBlending
                         });
-                        const spectralMesh = new THREE.Mesh(geometry.clone(), spectralMaterial);
+                        const rayMesh = new THREE.Mesh(geometry.clone(), rayMaterial);
 
-                        // Radial offset pattern for rainbow rays
-                        const angle = (i / spectralColors.length) * Math.PI * 2;
-                        const radiusOffset = 0.03;
-                        spectralMesh.position.set(
-                            Math.cos(angle) * radiusOffset,
+                        // Slight radial offset to create ray effect
+                        const rayOffset = 0.04;
+                        rayMesh.position.set(
+                            Math.cos(angle) * rayOffset,
                             0.75,
-                            Math.sin(angle) * radiusOffset
+                            Math.sin(angle) * rayOffset
                         );
-                        spectralMesh.scale.set(1.08 + i * 0.01, 1.08 + i * 0.01, 1);
-                        group.add(spectralMesh);
+                        rayMesh.scale.set(1.06, 1.06, 1);
+                        group.add(rayMesh);
                     });
 
-                    // DYNAMIC SHIMMERING - micro-spectrum layers
-                    const shimmerColors = [0x00ffff, 0xff00ff, 0xffff00, 0x00ff00];
-                    shimmerColors.forEach((color, i) => {
-                        const shimmerMaterial = new THREE.MeshBasicMaterial({
+                    // ─────────────────────────────────────────────────────────────
+                    // HOLOGRAPHIC FLICKER - shifting color bands
+                    // ─────────────────────────────────────────────────────────────
+                    // Multiple overlapping layers create holographic interference
+                    const holographicLayers = [
+                        { color: 0x00ffff, scale: 1.00, opacity: 0.5 },  // Cyan base
+                        { color: 0xff00ff, scale: 1.03, opacity: 0.5 },  // Magenta mid
+                        { color: 0xffff00, scale: 1.06, opacity: 0.5 },  // Yellow outer
+                        { color: 0x00ff00, scale: 1.01, opacity: 0.4 },  // Green accent
+                        { color: 0xff0080, scale: 1.04, opacity: 0.4 },  // Pink accent
+                        { color: 0x0080ff, scale: 1.05, opacity: 0.4 },  // Blue accent
+                    ];
+
+                    holographicLayers.forEach(({color, scale, opacity}) => {
+                        const holoMaterial = new THREE.MeshBasicMaterial({
                             color: color,
                             transparent: true,
-                            opacity: 0.2,
+                            opacity: opacity,
                             side: THREE.DoubleSide,
                             blending: THREE.AdditiveBlending
                         });
-                        const shimmerMesh = new THREE.Mesh(geometry.clone(), shimmerMaterial);
-                        shimmerMesh.position.set(
-                            (i - 1.5) * 0.015,
-                            0.75,
-                            (i - 1.5) * 0.015
-                        );
-                        shimmerMesh.scale.set(1.1 + i * 0.02, 1.1 + i * 0.02, 1);
-                        group.add(shimmerMesh);
+                        const holoMesh = new THREE.Mesh(geometry.clone(), holoMaterial);
+                        holoMesh.position.y = 0.75;
+                        holoMesh.scale.set(scale, scale, 1);
+                        group.add(holoMesh);
+                    });
+
+                    // ─────────────────────────────────────────────────────────────
+                    // SPECTRAL EDGE GLOW - rainbow perimeter
+                    // ─────────────────────────────────────────────────────────────
+                    // Outer edges glow with intense spectral colors
+                    const edgeGlow = [
+                        { color: 0xff0000, scale: 1.12 },  // Red
+                        { color: 0xff8000, scale: 1.14 },  // Orange
+                        { color: 0xffff00, scale: 1.16 },  // Yellow
+                        { color: 0x00ff00, scale: 1.18 },  // Green
+                        { color: 0x00ffff, scale: 1.20 },  // Cyan
+                        { color: 0x0080ff, scale: 1.22 },  // Blue
+                        { color: 0xff00ff, scale: 1.24 },  // Magenta
+                    ];
+
+                    edgeGlow.forEach(({color, scale}) => {
+                        const glowMaterial = new THREE.MeshBasicMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: 0.3,
+                            side: THREE.DoubleSide,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const glowMesh = new THREE.Mesh(geometry.clone(), glowMaterial);
+                        glowMesh.position.y = 0.75;
+                        glowMesh.scale.set(scale, scale, 1);
+                        group.add(glowMesh);
                     });
                 }
 
