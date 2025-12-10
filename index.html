@@ -232,8 +232,8 @@
 
                 // Setup Three.js
                 this.scene = new THREE.Scene();
-                // Dim ambient background - not black void
-                this.scene.background = new THREE.Color(0x1a1a1a);
+                // Dark grey background (not pure black) - simulates unlit gallery space
+                this.scene.background = new THREE.Color(0x0a0a0a);
 
                 this.camera = new THREE.PerspectiveCamera(
                     60, // Wider FOV for better room view
@@ -245,10 +245,16 @@
 
                 this.renderer = new THREE.WebGLRenderer({ antialias: true });
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+                // PHOTOGRAPHIC TONE MAPPING - soft filmic look, avoid crushing blacks
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.0; // Natural exposure
+
                 // ENHANCED shadow rendering for visible, sharp shadows
                 this.renderer.shadowMap.enabled = true;
                 this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
                 this.renderer.shadowMap.autoUpdate = true;
+
                 this.container.appendChild(this.renderer.domElement);
 
                 // Setup drawing
@@ -271,23 +277,23 @@
             createRoom() {
                 const { width, height, depth } = this.roomSize;
 
-                // Floor
+                // Floor - slightly off-white (#F5F5F5) like real gallery
                 const floorGeometry = new THREE.PlaneGeometry(width, depth);
                 const floorMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xf5f5f5,
+                    color: 0xf5f5f5, // #F5F5F5 - slightly off-white
                     roughness: 0.8,
-                    metalness: 0.1
+                    metalness: 0.0 // No metalness for pure white appearance
                 });
                 const floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 floor.rotation.x = -Math.PI / 2;
                 floor.receiveShadow = true;
                 this.scene.add(floor);
 
-                // Walls
+                // Walls - PURE WHITE (#FFFFFF) like modern museum
                 const wallMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xfafafa,
+                    color: 0xffffff, // #FFFFFF - pure white
                     roughness: 0.9,
-                    metalness: 0.05
+                    metalness: 0.0 // No metalness for pure white appearance
                 });
 
                 // Back wall
@@ -329,25 +335,31 @@
                 frontWall.receiveShadow = true;
                 this.scene.add(frontWall);
 
-                // Ceiling
+                // Ceiling - PURE WHITE (#FFFFFF) like modern museum
+                const ceilingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffffff, // #FFFFFF - pure white
+                    roughness: 0.9,
+                    metalness: 0.0
+                });
                 const ceiling = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, depth),
-                    wallMaterial
+                    ceilingMaterial
                 );
                 ceiling.position.y = height;
                 ceiling.rotation.x = Math.PI / 2;
                 this.scene.add(ceiling);
 
-                // Ambient light (dim but enough to see white gallery structure)
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+                // VERY LOW ambient light (0.05) - darkness through lighting, NOT grey walls
+                // White color (#FFFFFF) but very dim intensity
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
                 this.scene.add(ambientLight);
 
-                // Add subtle edge lighting to make corners visible
-                const edgeLight1 = new THREE.DirectionalLight(0xffffff, 0.15);
+                // Subtle edge lighting for corner definition (very soft, white tone)
+                const edgeLight1 = new THREE.DirectionalLight(0xffffff, 0.08);
                 edgeLight1.position.set(width/2, height, depth/2);
                 this.scene.add(edgeLight1);
 
-                const edgeLight2 = new THREE.DirectionalLight(0xffffff, 0.15);
+                const edgeLight2 = new THREE.DirectionalLight(0xffffff, 0.08);
                 edgeLight2.position.set(-width/2, height, -depth/2);
                 this.scene.add(edgeLight2);
 
