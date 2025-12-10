@@ -493,55 +493,69 @@
 
             createGlowingPoint() {
                 // ═══════════════════════════════════════════════════════════════
-                // FLAT PULSE POINT DISK (SMALL, PAINTED ON FLOOR)
+                // PERFECTLY FLAT GROUND GLOW (NO 3D EXTRUSION)
                 // ═══════════════════════════════════════════════════════════════
-                // Small flat glowing disk attached to floor, NOT a 3D sphere/dome
-                // Looks like a bright pulse emitter painted on the ground
+                // PlaneGeometry (not Circle, not Sphere) - perfectly flat
+                // Looks like soft hot spot on floor (gallery floor reflection)
+                // NO shadows cast, NO shadows received, NO visible thickness
                 // ═══════════════════════════════════════════════════════════════
 
-                // FLAT DISK (not volumetric sphere)
-                const diskRadius = 0.11; // Diameter = 0.22 (within 0.18-0.28 range)
-                const geometry = new THREE.CircleGeometry(diskRadius, 32);
+                // MAIN PULSE DISK - very small PlaneGeometry
+                const diskSize = 0.15; // Diameter 0.3m (within 0.25-0.35m range)
+                const geometry = new THREE.PlaneGeometry(diskSize, diskSize);
                 const material = new THREE.MeshBasicMaterial({
-                    color: 0xf0f8ff,  // Pure white with slight blue tint (Alice Blue)
+                    color: 0xffffff,  // Pure white (emissive + bloom)
                     transparent: false,
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide,
+                    depthWrite: false  // Prevents z-fighting
                 });
                 this.glowingPoint = new THREE.Mesh(geometry, material);
 
-                // Position EXACTLY on floor (y=0.01 to avoid z-fighting)
-                // Rotate 90° to face upward (disk lies flat on ground)
-                this.glowingPoint.position.set(0, 0.01, 0);
-                this.glowingPoint.rotation.x = -Math.PI / 2; // Face upward
+                // Position on floor + rotate EXACTLY -90° on X axis (lies flat)
+                this.glowingPoint.position.set(0, 0.005, 0); // Barely above floor
+                this.glowingPoint.rotation.x = -Math.PI / 2; // EXACTLY -90° - lies perfectly flat
                 this.glowingPoint.userData.type = 'glowingPoint';
+
+                // CRITICAL: NO shadows (must not cast or receive)
+                this.glowingPoint.castShadow = false;
+                this.glowingPoint.receiveShadow = false;
+
                 this.scene.add(this.glowingPoint);
 
-                // SOFT HALO GLOW (radius 2× disk size = 2 × 0.22 = 0.44)
-                // Flat circle halos stacked on top of disk
+                // SOFT GLOW BLOOM LAYERS (all PlaneGeometry, all flat on floor)
+                // Creates soft hot spot effect like gallery floor reflection
                 const glowLayers = [
-                    { radius: 0.22, opacity: 0.8 },   // Inner glow (2× disk)
-                    { radius: 0.35, opacity: 0.6 },   // Mid bloom
-                    { radius: 0.5, opacity: 0.4 },    // Outer bloom
-                    { radius: 0.7, opacity: 0.2 },    // Far halo
+                    { size: 0.3, opacity: 0.7 },   // Inner glow
+                    { size: 0.5, opacity: 0.5 },   // Mid bloom
+                    { size: 0.8, opacity: 0.3 },   // Outer bloom
+                    { size: 1.2, opacity: 0.15 },  // Far soft halo
                 ];
 
-                glowLayers.forEach(({ radius, opacity }) => {
-                    const glowGeometry = new THREE.CircleGeometry(radius, 32);
+                glowLayers.forEach(({ size, opacity }) => {
+                    const glowGeometry = new THREE.PlaneGeometry(size, size);
                     const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xf0f8ff,  // Slight blue tint
+                        color: 0xffffff,
                         transparent: true,
                         opacity: opacity,
-                        blending: THREE.AdditiveBlending,
-                        side: THREE.DoubleSide
+                        blending: THREE.AdditiveBlending,  // Bloom effect
+                        side: THREE.DoubleSide,
+                        depthWrite: false
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                    glow.rotation.x = -Math.PI / 2; // Face upward
-                    glow.position.y = 0.001; // Slightly above disk
+
+                    // Rotate to lie flat (EXACTLY -90° on X)
+                    glow.rotation.x = -Math.PI / 2;
+                    glow.position.y = 0.001; // Slightly above main disk
+
+                    // NO shadows
+                    glow.castShadow = false;
+                    glow.receiveShadow = false;
+
                     this.glowingPoint.add(glow);
                 });
 
-                // RADIANT POINT LIGHT (positioned at floor level)
-                const pointLight = new THREE.PointLight(0xf0f8ff, 5.0, 20, 2);
+                // POINT LIGHT for illumination (positioned at floor level)
+                const pointLight = new THREE.PointLight(0xffffff, 4.0, 15, 2);
                 pointLight.position.set(0, 0, 0);
                 this.glowingPoint.add(pointLight);
             },
