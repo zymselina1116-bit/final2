@@ -493,46 +493,55 @@
 
             createGlowingPoint() {
                 // ═══════════════════════════════════════════════════════════════
-                // EXTREMELY BRIGHT PULSE POINT (BLOOM + GLOW)
+                // FLAT PULSE POINT DISK (SMALL, PAINTED ON FLOOR)
                 // ═══════════════════════════════════════════════════════════════
-                // Center point must be intensely bright and emissive
-                // Strong bloom and glow that visibly radiates light
-                // Brightness remains constant - never dims or blends into floor
+                // Small flat glowing disk attached to floor, NOT a 3D sphere/dome
+                // Looks like a bright pulse emitter painted on the ground
                 // ═══════════════════════════════════════════════════════════════
 
-                const geometry = new THREE.SphereGeometry(0.2, 32, 32);
+                // FLAT DISK (not volumetric sphere)
+                const diskRadius = 0.11; // Diameter = 0.22 (within 0.18-0.28 range)
+                const geometry = new THREE.CircleGeometry(diskRadius, 32);
                 const material = new THREE.MeshBasicMaterial({
-                    color: 0xffffff,
-                    transparent: false
+                    color: 0xf0f8ff,  // Pure white with slight blue tint (Alice Blue)
+                    transparent: false,
+                    side: THREE.DoubleSide
                 });
                 this.glowingPoint = new THREE.Mesh(geometry, material);
-                this.glowingPoint.position.set(0, 0.2, 0); // FIXED on floor center - NEVER moves
+
+                // Position EXACTLY on floor (y=0.01 to avoid z-fighting)
+                // Rotate 90° to face upward (disk lies flat on ground)
+                this.glowingPoint.position.set(0, 0.01, 0);
+                this.glowingPoint.rotation.x = -Math.PI / 2; // Face upward
                 this.glowingPoint.userData.type = 'glowingPoint';
                 this.scene.add(this.glowingPoint);
 
-                // INTENSE MULTI-LAYER GLOW (additive blending for bloom effect)
+                // SOFT HALO GLOW (radius 2× disk size = 2 × 0.22 = 0.44)
+                // Flat circle halos stacked on top of disk
                 const glowLayers = [
-                    { radius: 0.4, opacity: 0.9 },   // Inner intense glow
-                    { radius: 0.7, opacity: 0.7 },   // Mid glow
-                    { radius: 1.2, opacity: 0.5 },   // Outer bloom
-                    { radius: 2.0, opacity: 0.3 },   // Far bloom halo
+                    { radius: 0.22, opacity: 0.8 },   // Inner glow (2× disk)
+                    { radius: 0.35, opacity: 0.6 },   // Mid bloom
+                    { radius: 0.5, opacity: 0.4 },    // Outer bloom
+                    { radius: 0.7, opacity: 0.2 },    // Far halo
                 ];
 
                 glowLayers.forEach(({ radius, opacity }) => {
-                    const glowGeometry = new THREE.SphereGeometry(radius, 32, 32);
+                    const glowGeometry = new THREE.CircleGeometry(radius, 32);
                     const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xffffff,
+                        color: 0xf0f8ff,  // Slight blue tint
                         transparent: true,
                         opacity: opacity,
-                        blending: THREE.AdditiveBlending,  // Additive for intense bloom
+                        blending: THREE.AdditiveBlending,
                         side: THREE.DoubleSide
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                    glow.rotation.x = -Math.PI / 2; // Face upward
+                    glow.position.y = 0.001; // Slightly above disk
                     this.glowingPoint.add(glow);
                 });
 
-                // RADIANT POINT LIGHT (makes it visibly emit light)
-                const pointLight = new THREE.PointLight(0xffffff, 5.0, 20, 2);
+                // RADIANT POINT LIGHT (positioned at floor level)
+                const pointLight = new THREE.PointLight(0xf0f8ff, 5.0, 20, 2);
                 pointLight.position.set(0, 0, 0);
                 this.glowingPoint.add(pointLight);
             },
