@@ -282,23 +282,75 @@
             createRoom() {
                 const { width, height, depth } = this.roomSize;
 
-                // Floor - slightly off-white (#F5F5F5) like real gallery
+                // ═══════════════════════════════════════════════════════════════
+                // REALISTIC GALLERY FLOOR (light concrete with subtle texture)
+                // ═══════════════════════════════════════════════════════════════
+                const floorCanvas = document.createElement('canvas');
+                floorCanvas.width = 512;
+                floorCanvas.height = 512;
+                const floorCtx = floorCanvas.getContext('2d');
+
+                // Light concrete base color
+                floorCtx.fillStyle = '#e8e8e8';
+                floorCtx.fillRect(0, 0, 512, 512);
+
+                // Subtle concrete texture (fine grain)
+                for (let i = 0; i < 15000; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 512;
+                    const brightness = Math.random() * 30 - 15;
+                    const baseGray = 232 + brightness;
+                    floorCtx.fillStyle = `rgb(${baseGray}, ${baseGray}, ${baseGray})`;
+                    floorCtx.fillRect(x, y, 1, 1);
+                }
+
+                const floorTexture = new THREE.CanvasTexture(floorCanvas);
+                floorTexture.wrapS = THREE.RepeatWrapping;
+                floorTexture.wrapT = THREE.RepeatWrapping;
+                floorTexture.repeat.set(4, 4);
+
                 const floorGeometry = new THREE.PlaneGeometry(width, depth);
                 const floorMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xf5f5f5, // #F5F5F5 - slightly off-white
-                    roughness: 0.8,
-                    metalness: 0.0 // No metalness for pure white appearance
+                    map: floorTexture,
+                    roughness: 0.85,      // Slightly rougher for concrete
+                    metalness: 0.0
                 });
                 const floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 floor.rotation.x = -Math.PI / 2;
                 floor.receiveShadow = true;
                 this.scene.add(floor);
 
-                // Walls - PURE WHITE (#FFFFFF) like modern museum
+                // ═══════════════════════════════════════════════════════════════
+                // REAL GALLERY WALLS (soft matte off-white with faint texture)
+                // ═══════════════════════════════════════════════════════════════
+                const wallCanvas = document.createElement('canvas');
+                wallCanvas.width = 512;
+                wallCanvas.height = 512;
+                const wallCtx = wallCanvas.getContext('2d');
+
+                // Soft off-white base
+                wallCtx.fillStyle = '#fafafa';
+                wallCtx.fillRect(0, 0, 512, 512);
+
+                // Very faint texture (barely visible)
+                for (let i = 0; i < 8000; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 512;
+                    const brightness = Math.random() * 10 - 5;
+                    const baseGray = 250 + brightness;
+                    wallCtx.fillStyle = `rgb(${baseGray}, ${baseGray}, ${baseGray})`;
+                    wallCtx.fillRect(x, y, 1, 1);
+                }
+
+                const wallTexture = new THREE.CanvasTexture(wallCanvas);
+                wallTexture.wrapS = THREE.RepeatWrapping;
+                wallTexture.wrapT = THREE.RepeatWrapping;
+                wallTexture.repeat.set(2, 2);
+
                 const wallMaterial = new THREE.MeshStandardMaterial({
-                    color: 0xffffff, // #FFFFFF - pure white
-                    roughness: 0.9,
-                    metalness: 0.0 // No metalness for pure white appearance
+                    map: wallTexture,
+                    roughness: 0.95,  // Very matte
+                    metalness: 0.0
                 });
 
                 // Back wall
@@ -440,29 +492,49 @@
             },
 
             createGlowingPoint() {
-                // Pulsing white glowing point on floor
-                const geometry = new THREE.SphereGeometry(0.15, 32, 32);
-                const material = new THREE.MeshStandardMaterial({
+                // ═══════════════════════════════════════════════════════════════
+                // EXTREMELY BRIGHT PULSE POINT (BLOOM + GLOW)
+                // ═══════════════════════════════════════════════════════════════
+                // Center point must be intensely bright and emissive
+                // Strong bloom and glow that visibly radiates light
+                // Brightness remains constant - never dims or blends into floor
+                // ═══════════════════════════════════════════════════════════════
+
+                const geometry = new THREE.SphereGeometry(0.2, 32, 32);
+                const material = new THREE.MeshBasicMaterial({
                     color: 0xffffff,
-                    emissive: 0xffffff,
-                    emissiveIntensity: 1,
-                    metalness: 0,
-                    roughness: 0.2
+                    transparent: false
                 });
                 this.glowingPoint = new THREE.Mesh(geometry, material);
-                this.glowingPoint.position.set(0, 0.15, 0); // FIXED on floor center - NEVER moves
+                this.glowingPoint.position.set(0, 0.2, 0); // FIXED on floor center - NEVER moves
                 this.glowingPoint.userData.type = 'glowingPoint';
                 this.scene.add(this.glowingPoint);
 
-                // Add glow effect
-                const glowGeometry = new THREE.SphereGeometry(0.3, 32, 32);
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xffffff,
-                    transparent: true,
-                    opacity: 0.3
+                // INTENSE MULTI-LAYER GLOW (additive blending for bloom effect)
+                const glowLayers = [
+                    { radius: 0.4, opacity: 0.9 },   // Inner intense glow
+                    { radius: 0.7, opacity: 0.7 },   // Mid glow
+                    { radius: 1.2, opacity: 0.5 },   // Outer bloom
+                    { radius: 2.0, opacity: 0.3 },   // Far bloom halo
+                ];
+
+                glowLayers.forEach(({ radius, opacity }) => {
+                    const glowGeometry = new THREE.SphereGeometry(radius, 32, 32);
+                    const glowMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xffffff,
+                        transparent: true,
+                        opacity: opacity,
+                        blending: THREE.AdditiveBlending,  // Additive for intense bloom
+                        side: THREE.DoubleSide
+                    });
+                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                    this.glowingPoint.add(glow);
                 });
-                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                this.glowingPoint.add(glow);
+
+                // RADIANT POINT LIGHT (makes it visibly emit light)
+                const pointLight = new THREE.PointLight(0xffffff, 5.0, 20, 2);
+                pointLight.position.set(0, 0, 0);
+                this.glowingPoint.add(pointLight);
             },
 
 
@@ -653,13 +725,15 @@
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
-                // HIGH QUALITY shadow settings for sharp, visible shadows
-                light.shadow.mapSize.width = 4096;  // Increased resolution
+                // SHADOW LAYERING + SOFT EDGES SETTINGS
+                // Multiple overlapping shadows stack and darken naturally
+                // Edges have very slight blur (soft but not fuzzy)
+                light.shadow.mapSize.width = 4096;  // High resolution for detail
                 light.shadow.mapSize.height = 4096;
-                light.shadow.bias = -0.0005; // Darker shadows
+                light.shadow.bias = -0.0003; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 1; // Soft edges but visible
+                light.shadow.radius = 0.8; // VERY slight blur (soft but not washed out)
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
@@ -739,31 +813,54 @@
                 // Material based on selection
                 let material;
                 if (this.panelMaterial === 'laser') {
-                    // TRUE LASER MATERIAL - rainbow holographic diffraction
-                    // Create matcap with rainbow gradient for CD/holographic effect
+                    // ═══════════════════════════════════════════════════════════════
+                    // SOFT HOLOGRAPHIC FOIL MATERIAL (matches reference image)
+                    // ═══════════════════════════════════════════════════════════════
+                    // Soft pastel rainbow gradients with pearl iridescence
+                    // Thin-film interference, subtle micro-texture, gentle shimmer
+                    // ═══════════════════════════════════════════════════════════════
+
                     const matcapCanvas = document.createElement('canvas');
-                    matcapCanvas.width = 256;
-                    matcapCanvas.height = 256;
+                    matcapCanvas.width = 512;
+                    matcapCanvas.height = 512;
                     const ctx = matcapCanvas.getContext('2d');
 
-                    // Create radial rainbow gradient
-                    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-                    gradient.addColorStop(0, '#ffffff');
-                    gradient.addColorStop(0.2, '#ff00ff');
-                    gradient.addColorStop(0.4, '#0000ff');
-                    gradient.addColorStop(0.6, '#00ffff');
-                    gradient.addColorStop(0.8, '#ffff00');
-                    gradient.addColorStop(1, '#ff0000');
+                    // Create soft pastel holographic gradient (purple→pink→blue→yellow→green)
+                    const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+                    gradient.addColorStop(0, '#ffe6ff');    // Very pale pink center
+                    gradient.addColorStop(0.15, '#e6ccff'); // Soft purple
+                    gradient.addColorStop(0.3, '#ffb3e6');  // Pastel pink
+                    gradient.addColorStop(0.45, '#b3d9ff'); // Soft blue
+                    gradient.addColorStop(0.6, '#ffffcc');  // Pale yellow
+                    gradient.addColorStop(0.75, '#ccffcc'); // Pale green
+                    gradient.addColorStop(0.9, '#e6ccff');  // Back to purple
+                    gradient.addColorStop(1, '#ffccff');    // Pink edge
                     ctx.fillStyle = gradient;
-                    ctx.fillRect(0, 0, 256, 256);
+                    ctx.fillRect(0, 0, 512, 512);
+
+                    // Add subtle micro-texture (fine embossed pattern)
+                    for (let i = 0; i < 8000; i++) {
+                        const x = Math.random() * 512;
+                        const y = Math.random() * 512;
+                        const size = Math.random() * 1.5 + 0.5;
+                        ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.15})`;
+                        ctx.fillRect(x, y, size, size);
+                    }
 
                     const matcapTexture = new THREE.CanvasTexture(matcapCanvas);
 
-                    material = new THREE.MeshMatcapMaterial({
-                        matcap: matcapTexture,
+                    material = new THREE.MeshPhysicalMaterial({
+                        map: matcapTexture,
                         side: THREE.DoubleSide,
                         transparent: true,
-                        opacity: 0.95
+                        opacity: 0.92,              // Slight translucency (5-10%)
+                        roughness: 0.2,             // High gloss
+                        metalness: 0.0,             // No metallic (pearlescent, not mirror)
+                        clearcoat: 0.8,             // Pearl-like sheen
+                        clearcoatRoughness: 0.3,    // Soft, blurred reflections
+                        envMapIntensity: 0.5,       // Subtle environment reflection
+                        transmission: 0.08,         // Soft light refraction through material
+                        thickness: 0.5              // For realistic light transmission
                     });
                 } else {
                     // NORMAL material - LIGHTER translucent gray shadow
@@ -782,157 +879,52 @@
                 mesh.position.y = 0.75;
                 mesh.rotation.x = 0; // Face forward
 
-                // CRITICAL: LASER panels do NOT cast regular shadows (shadow = rainbow light projection only)
-                // NORMAL panels cast regular grey shadows
-                mesh.castShadow = (this.panelMaterial !== 'laser');
+                // ALL panels cast shadows (both NORMAL and LASER)
+                mesh.castShadow = true;
                 mesh.receiveShadow = false;
 
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
                 // ═══════════════════════════════════════════════════════════════
-                // LASER SHADOW = RAINBOW LIGHT PROJECTION (NOT DARKNESS!)
+                // LASER CHROMATIC SHADOW - rainbow light explosion
                 // ═══════════════════════════════════════════════════════════════
-                // The "shadow" of a LASER panel is treated as colorful light projection
-                // Visual reference: light passing through holographic foil or diffraction grating
-                // ZERO grey/black tones - only vivid spectral colors
+                // Create colored point lights that shine through/around panel
+                // producing chromatic diffraction effect on the wall
                 // ═══════════════════════════════════════════════════════════════
                 if (this.panelMaterial === 'laser') {
-                    // ─────────────────────────────────────────────────────────────
-                    // DENSE MULTICOLOR INTERFERENCE BANDS
-                    // ─────────────────────────────────────────────────────────────
-                    // Create many overlapping layers of vivid spectral colors
-                    // These fill the entire silhouette with rainbow light, not darkness
+                    // Full spectrum chromatic lights positioned behind panel
+                    // These shine toward the wall, creating rainbow halos around shadow
+                    const chromaticLights = [
+                        // Core spectrum (saturated neon colors)
+                        { color: 0xff0000, intensity: 2.5, offset: { x: 0, y: 0, z: -0.3 } },      // Red
+                        { color: 0xff8c00, intensity: 2.5, offset: { x: 0.15, y: 0.1, z: -0.3 } },   // Orange
+                        { color: 0xffff00, intensity: 2.5, offset: { x: -0.15, y: 0.1, z: -0.3 } },  // Yellow
+                        { color: 0x00ff00, intensity: 2.5, offset: { x: 0, y: 0.2, z: -0.3 } },      // Green
+                        { color: 0x00ffff, intensity: 3.0, offset: { x: 0.1, y: -0.1, z: -0.3 } },   // Aqua/Cyan
+                        { color: 0x0080ff, intensity: 2.5, offset: { x: -0.1, y: -0.1, z: -0.3 } },  // Blue
+                        { color: 0x8000ff, intensity: 2.5, offset: { x: 0, y: -0.2, z: -0.3 } },     // Violet
 
-                    // Primary spectrum bands - dense interference pattern
-                    const spectrumBands = [
-                        // First wave - pure spectrum
-                        { color: 0xff0000, opacity: 0.6, scale: 1.00, offset: 0.00 },  // Red
-                        { color: 0xff8c00, opacity: 0.6, scale: 1.00, offset: 0.01 },  // Orange
-                        { color: 0xffff00, opacity: 0.6, scale: 1.00, offset: 0.02 },  // Yellow
-                        { color: 0x00ff00, opacity: 0.6, scale: 1.00, offset: 0.03 },  // Green
-                        { color: 0x00ffff, opacity: 0.6, scale: 1.00, offset: 0.04 },  // Cyan
-                        { color: 0x0080ff, opacity: 0.6, scale: 1.00, offset: 0.05 },  // Blue
-                        { color: 0x8000ff, opacity: 0.6, scale: 1.00, offset: 0.06 },  // Violet
-                        { color: 0xff00ff, opacity: 0.6, scale: 1.00, offset: 0.07 },  // Magenta
+                        // Radial dispersion rays (spreading outward)
+                        { color: 0xff00ff, intensity: 2.0, offset: { x: 0.25, y: 0, z: -0.25 } },    // Magenta
+                        { color: 0xff0080, intensity: 2.0, offset: { x: -0.25, y: 0, z: -0.25 } },   // Pink
+                        { color: 0x00ff80, intensity: 2.0, offset: { x: 0, y: 0.25, z: -0.25 } },    // Spring green
+                        { color: 0x80ffff, intensity: 2.0, offset: { x: 0, y: -0.25, z: -0.25 } },   // Light cyan
 
-                        // Second wave - shifted interference
-                        { color: 0xff0080, opacity: 0.5, scale: 1.02, offset: 0.015 }, // Pink-red
-                        { color: 0xffff80, opacity: 0.5, scale: 1.02, offset: 0.025 }, // Light yellow
-                        { color: 0x80ff80, opacity: 0.5, scale: 1.02, offset: 0.035 }, // Light green
-                        { color: 0x80ffff, opacity: 0.5, scale: 1.02, offset: 0.045 }, // Light cyan
-                        { color: 0x8080ff, opacity: 0.5, scale: 1.02, offset: 0.055 }, // Light blue
-                        { color: 0xff80ff, opacity: 0.5, scale: 1.02, offset: 0.065 }, // Light magenta
-
-                        // Third wave - neon accents
-                        { color: 0x00ffff, opacity: 0.7, scale: 1.04, offset: 0.02 },  // Neon cyan
-                        { color: 0xff00ff, opacity: 0.7, scale: 1.04, offset: 0.04 },  // Neon magenta
-                        { color: 0xffff00, opacity: 0.7, scale: 1.04, offset: 0.06 },  // Neon yellow
+                        // Iridescent edge halos
+                        { color: 0xffb3e6, intensity: 1.8, offset: { x: 0.2, y: 0.2, z: -0.2 } },    // Pink
+                        { color: 0xffffcc, intensity: 1.8, offset: { x: -0.2, y: 0.2, z: -0.2 } },   // Pale yellow
+                        { color: 0xccffff, intensity: 1.8, offset: { x: 0.2, y: -0.2, z: -0.2 } },   // Pale cyan
                     ];
 
-                    spectrumBands.forEach(({color, opacity, scale, offset}) => {
-                        const bandMaterial = new THREE.MeshBasicMaterial({
-                            color: color,
-                            transparent: true,
-                            opacity: opacity,
-                            side: THREE.DoubleSide,
-                            blending: THREE.AdditiveBlending  // Colors add together like light
-                        });
-                        const bandMesh = new THREE.Mesh(geometry.clone(), bandMaterial);
-                        bandMesh.position.set(offset, 0.75, offset);
-                        bandMesh.scale.set(scale, scale, 1);
-                        group.add(bandMesh);
+                    chromaticLights.forEach(({ color, intensity, offset }) => {
+                        const light = new THREE.PointLight(color, intensity, 15, 2);
+                        light.position.set(offset.x, 0.75 + offset.y, offset.z);
+                        group.add(light);
                     });
 
-                    // ─────────────────────────────────────────────────────────────
-                    // CHROMATIC RAYS - spectrum separation
-                    // ─────────────────────────────────────────────────────────────
-                    // Create radial rays emanating from center like diffraction grating
-                    const rayColors = [
-                        0xff0000, 0xff4000, 0xff8000, 0xffbf00, 0xffff00,  // Red to yellow
-                        0xbfff00, 0x80ff00, 0x40ff00, 0x00ff00,            // Yellow to green
-                        0x00ff40, 0x00ff80, 0x00ffbf, 0x00ffff,            // Green to cyan
-                        0x00bfff, 0x0080ff, 0x0040ff, 0x0000ff,            // Cyan to blue
-                        0x4000ff, 0x8000ff, 0xbf00ff, 0xff00ff,            // Blue to magenta
-                        0xff00bf, 0xff0080, 0xff0040                       // Magenta to red
-                    ];
-
-                    rayColors.forEach((color, i) => {
-                        const angle = (i / rayColors.length) * Math.PI * 2;
-                        const rayMaterial = new THREE.MeshBasicMaterial({
-                            color: color,
-                            transparent: true,
-                            opacity: 0.4,
-                            side: THREE.DoubleSide,
-                            blending: THREE.AdditiveBlending
-                        });
-                        const rayMesh = new THREE.Mesh(geometry.clone(), rayMaterial);
-
-                        // Slight radial offset to create ray effect
-                        const rayOffset = 0.04;
-                        rayMesh.position.set(
-                            Math.cos(angle) * rayOffset,
-                            0.75,
-                            Math.sin(angle) * rayOffset
-                        );
-                        rayMesh.scale.set(1.06, 1.06, 1);
-                        group.add(rayMesh);
-                    });
-
-                    // ─────────────────────────────────────────────────────────────
-                    // HOLOGRAPHIC FLICKER - shifting color bands
-                    // ─────────────────────────────────────────────────────────────
-                    // Multiple overlapping layers create holographic interference
-                    const holographicLayers = [
-                        { color: 0x00ffff, scale: 1.00, opacity: 0.5 },  // Cyan base
-                        { color: 0xff00ff, scale: 1.03, opacity: 0.5 },  // Magenta mid
-                        { color: 0xffff00, scale: 1.06, opacity: 0.5 },  // Yellow outer
-                        { color: 0x00ff00, scale: 1.01, opacity: 0.4 },  // Green accent
-                        { color: 0xff0080, scale: 1.04, opacity: 0.4 },  // Pink accent
-                        { color: 0x0080ff, scale: 1.05, opacity: 0.4 },  // Blue accent
-                    ];
-
-                    holographicLayers.forEach(({color, scale, opacity}) => {
-                        const holoMaterial = new THREE.MeshBasicMaterial({
-                            color: color,
-                            transparent: true,
-                            opacity: opacity,
-                            side: THREE.DoubleSide,
-                            blending: THREE.AdditiveBlending
-                        });
-                        const holoMesh = new THREE.Mesh(geometry.clone(), holoMaterial);
-                        holoMesh.position.y = 0.75;
-                        holoMesh.scale.set(scale, scale, 1);
-                        group.add(holoMesh);
-                    });
-
-                    // ─────────────────────────────────────────────────────────────
-                    // SPECTRAL EDGE GLOW - rainbow perimeter
-                    // ─────────────────────────────────────────────────────────────
-                    // Outer edges glow with intense spectral colors
-                    const edgeGlow = [
-                        { color: 0xff0000, scale: 1.12 },  // Red
-                        { color: 0xff8000, scale: 1.14 },  // Orange
-                        { color: 0xffff00, scale: 1.16 },  // Yellow
-                        { color: 0x00ff00, scale: 1.18 },  // Green
-                        { color: 0x00ffff, scale: 1.20 },  // Cyan
-                        { color: 0x0080ff, scale: 1.22 },  // Blue
-                        { color: 0xff00ff, scale: 1.24 },  // Magenta
-                    ];
-
-                    edgeGlow.forEach(({color, scale}) => {
-                        const glowMaterial = new THREE.MeshBasicMaterial({
-                            color: color,
-                            transparent: true,
-                            opacity: 0.3,
-                            side: THREE.DoubleSide,
-                            blending: THREE.AdditiveBlending
-                        });
-                        const glowMesh = new THREE.Mesh(geometry.clone(), glowMaterial);
-                        glowMesh.position.y = 0.75;
-                        glowMesh.scale.set(scale, scale, 1);
-                        group.add(glowMesh);
-                    });
+                    // Store reference so we can update light positions if panel rotates
+                    group.userData.hasChromaticLights = true;
                 }
 
                 return group;
@@ -1135,8 +1127,9 @@
                 // Camera 0.5m from opposite wall = Z = 7.5
                 this.camera.position.set(0, 1.8, 7.5);
 
-                // ALWAYS face toward shadow wall
-                this.camera.lookAt(0, 1.6, 0);
+                // ADJUSTED LOOK AT - higher to reduce ground visibility in viewport
+                // Looking more toward center/wall instead of floor
+                this.camera.lookAt(0, 2.5, 0);  // Raised from 1.6 to 2.5 to reduce floor view
 
                 // Rotation ONLY - no position changes allowed
                 // This will be overridden by orbit controls if used
@@ -1153,11 +1146,11 @@
 
                 const time = Date.now() * 0.001;
 
-                // Pulsing glow on glowing point
+                // CONSTANT BRIGHT PULSING on glowing point (very subtle)
                 if (this.glowingPoint) {
-                    const pulse = Math.sin(time * 2) * 0.3 + 0.7;
-                    this.glowingPoint.material.emissiveIntensity = pulse * 1.2;
+                    const pulse = Math.sin(time * 3) * 0.1 + 0.95; // Subtle pulse (0.85 to 1.05)
                     this.glowingPoint.scale.set(pulse, pulse, pulse);
+                    // Brightness stays CONSTANT - no dimming
                 }
 
                 // Update carousel rotations with friction
