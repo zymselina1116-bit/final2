@@ -406,31 +406,14 @@
                 ceiling.rotation.x = Math.PI / 2;
                 this.scene.add(ceiling);
 
-                // INCREASED ambient light for visible white room (not dark/grey)
-                // Soft uniform ambient filling entire volume
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
+                // DARKER ambient light - room should be darker overall
+                // Only areas hit by spotlight should be bright
+                // Maintains clarity but reduces overall brightness
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.08);
                 this.scene.add(ambientLight);
 
-                // SKYLIGHT at ceiling center - natural cool-white environmental light
-                // Subtle, diffused glow that brightens space without competing with spotlights
-                const skylightGeometry = new THREE.CircleGeometry(2, 32);
-                const skylightMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xf0f8ff, // Cool white (Alice Blue)
-                    side: THREE.DoubleSide,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const skylight = new THREE.Mesh(skylightGeometry, skylightMaterial);
-                skylight.position.set(0, height - 0.01, 0); // At ceiling center
-                skylight.rotation.x = -Math.PI / 2;
-                this.scene.add(skylight);
-
-                // Skylight illumination - soft directional from above
-                const skylightLight = new THREE.DirectionalLight(0xf0f8ff, 0.3);
-                skylightLight.position.set(0, height, 0);
-                skylightLight.target.position.set(0, 0, 0);
-                this.scene.add(skylightLight);
-                this.scene.add(skylightLight.target);
+                // Remove skylight - only spotlight creates light
+                // (skylight section removed for darker room)
 
                 // Subtle edge lighting for corner definition (very soft, white tone)
                 const edgeLight1 = new THREE.DirectionalLight(0xffffff, 0.08);
@@ -748,15 +731,15 @@
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
-                // SHADOW LAYERING + SOFT EDGES SETTINGS
-                // Multiple overlapping shadows stack and darken naturally
-                // Edges have very slight blur (soft but not fuzzy)
+                // SHADOW SETTINGS - only a little blur on edges
+                // Physically-correct penumbra: distance-based softness
+                // Close to wall = sharp, far = softer, never muddy
                 light.shadow.mapSize.width = 4096;  // High resolution for detail
                 light.shadow.mapSize.height = 4096;
-                light.shadow.bias = -0.0003; // Subtle bias for layering
+                light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 0.8; // VERY slight blur (soft but not washed out)
+                light.shadow.radius = 0.4; // Just a little blur on edges (not much)
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
@@ -837,53 +820,50 @@
                 let material;
                 if (this.panelMaterial === 'laser') {
                     // ═══════════════════════════════════════════════════════════════
-                    // SOFT HOLOGRAPHIC FOIL MATERIAL (matches reference image)
+                    // HOLOGRAPHIC DIFFRACTION MATERIAL (like real holographic film)
                     // ═══════════════════════════════════════════════════════════════
-                    // Soft pastel rainbow gradients with pearl iridescence
-                    // Thin-film interference, subtle micro-texture, gentle shimmer
+                    // Shimmering rainbow, sharp color shifts, metallic reflection
+                    // Multi-angle iridescence - NOT a light source, only reflects
                     // ═══════════════════════════════════════════════════════════════
 
-                    const matcapCanvas = document.createElement('canvas');
-                    matcapCanvas.width = 512;
-                    matcapCanvas.height = 512;
-                    const ctx = matcapCanvas.getContext('2d');
+                    const holoCanvas = document.createElement('canvas');
+                    holoCanvas.width = 512;
+                    holoCanvas.height = 512;
+                    const ctx = holoCanvas.getContext('2d');
 
-                    // Create soft pastel holographic gradient (purple→pink→blue→yellow→green)
-                    const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
-                    gradient.addColorStop(0, '#ffe6ff');    // Very pale pink center
-                    gradient.addColorStop(0.15, '#e6ccff'); // Soft purple
-                    gradient.addColorStop(0.3, '#ffb3e6');  // Pastel pink
-                    gradient.addColorStop(0.45, '#b3d9ff'); // Soft blue
-                    gradient.addColorStop(0.6, '#ffffcc');  // Pale yellow
-                    gradient.addColorStop(0.75, '#ccffcc'); // Pale green
-                    gradient.addColorStop(0.9, '#e6ccff');  // Back to purple
-                    gradient.addColorStop(1, '#ffccff');    // Pink edge
+                    // Create vibrant holographic diffraction texture
+                    // Sharp rainbow bands (not soft pastels)
+                    const gradient = ctx.createLinearGradient(0, 0, 512, 512);
+                    gradient.addColorStop(0, '#ff00ff');    // Magenta
+                    gradient.addColorStop(0.14, '#0080ff'); // Blue
+                    gradient.addColorStop(0.28, '#00ffff'); // Cyan
+                    gradient.addColorStop(0.42, '#00ff00'); // Green
+                    gradient.addColorStop(0.57, '#ffff00'); // Yellow
+                    gradient.addColorStop(0.71, '#ff8000'); // Orange
+                    gradient.addColorStop(0.85, '#ff0000'); // Red
+                    gradient.addColorStop(1, '#ff00ff');    // Back to magenta
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, 512, 512);
 
-                    // Add subtle micro-texture (fine embossed pattern)
-                    for (let i = 0; i < 8000; i++) {
-                        const x = Math.random() * 512;
-                        const y = Math.random() * 512;
-                        const size = Math.random() * 1.5 + 0.5;
-                        ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.15})`;
-                        ctx.fillRect(x, y, size, size);
+                    // Add prismatic interference patterns (fine lines for diffraction)
+                    ctx.globalAlpha = 0.4;
+                    for (let i = 0; i < 512; i += 2) {
+                        ctx.fillStyle = i % 4 === 0 ? '#ffffff' : '#000000';
+                        ctx.fillRect(i, 0, 1, 512);
                     }
 
-                    const matcapTexture = new THREE.CanvasTexture(matcapCanvas);
+                    const holoTexture = new THREE.CanvasTexture(holoCanvas);
 
                     material = new THREE.MeshPhysicalMaterial({
-                        map: matcapTexture,
+                        map: holoTexture,
                         side: THREE.DoubleSide,
-                        transparent: true,
-                        opacity: 0.92,              // Slight translucency (5-10%)
-                        roughness: 0.2,             // High gloss
-                        metalness: 0.0,             // No metallic (pearlescent, not mirror)
-                        clearcoat: 0.8,             // Pearl-like sheen
-                        clearcoatRoughness: 0.3,    // Soft, blurred reflections
-                        envMapIntensity: 0.5,       // Subtle environment reflection
-                        transmission: 0.08,         // Soft light refraction through material
-                        thickness: 0.5              // For realistic light transmission
+                        transparent: false,
+                        roughness: 0.1,             // Very high gloss (metallic shine)
+                        metalness: 0.9,             // Highly metallic (reflective, iridescent)
+                        clearcoat: 1.0,             // Strong clear coat for sharp reflections
+                        clearcoatRoughness: 0.1,    // Sharp reflections, not blurred
+                        envMapIntensity: 1.5,       // Strong environment reflections
+                        reflectivity: 1.0           // Maximum reflectivity
                     });
                 } else {
                     // NORMAL material - LIGHTER translucent gray shadow
@@ -910,45 +890,17 @@
                 group.userData.mesh = mesh;
 
                 // ═══════════════════════════════════════════════════════════════
-                // LASER CHROMATIC SHADOW - rainbow light explosion
+                // LASER PANEL - NO ADDITIONAL LIGHTS
                 // ═══════════════════════════════════════════════════════════════
-                // Create colored point lights that shine through/around panel
-                // producing chromatic diffraction effect on the wall
+                // Laser panel is NOT a light source - it only reflects spotlight
+                // Holographic diffraction comes from the material itself
+                // Shadow on wall preserves exact silhouette from panel geometry
+                //
+                // NOTE: THREE.js shadow mapping limitation - shadows are inherently
+                // dark/grey regardless of material. True holographic rainbow shadow
+                // projection would require custom shader or post-processing.
+                // The panel's iridescent material provides visual diffraction effect.
                 // ═══════════════════════════════════════════════════════════════
-                if (this.panelMaterial === 'laser') {
-                    // Full spectrum chromatic lights positioned behind panel
-                    // These shine toward the wall, creating rainbow halos around shadow
-                    const chromaticLights = [
-                        // Core spectrum (saturated neon colors)
-                        { color: 0xff0000, intensity: 2.5, offset: { x: 0, y: 0, z: -0.3 } },      // Red
-                        { color: 0xff8c00, intensity: 2.5, offset: { x: 0.15, y: 0.1, z: -0.3 } },   // Orange
-                        { color: 0xffff00, intensity: 2.5, offset: { x: -0.15, y: 0.1, z: -0.3 } },  // Yellow
-                        { color: 0x00ff00, intensity: 2.5, offset: { x: 0, y: 0.2, z: -0.3 } },      // Green
-                        { color: 0x00ffff, intensity: 3.0, offset: { x: 0.1, y: -0.1, z: -0.3 } },   // Aqua/Cyan
-                        { color: 0x0080ff, intensity: 2.5, offset: { x: -0.1, y: -0.1, z: -0.3 } },  // Blue
-                        { color: 0x8000ff, intensity: 2.5, offset: { x: 0, y: -0.2, z: -0.3 } },     // Violet
-
-                        // Radial dispersion rays (spreading outward)
-                        { color: 0xff00ff, intensity: 2.0, offset: { x: 0.25, y: 0, z: -0.25 } },    // Magenta
-                        { color: 0xff0080, intensity: 2.0, offset: { x: -0.25, y: 0, z: -0.25 } },   // Pink
-                        { color: 0x00ff80, intensity: 2.0, offset: { x: 0, y: 0.25, z: -0.25 } },    // Spring green
-                        { color: 0x80ffff, intensity: 2.0, offset: { x: 0, y: -0.25, z: -0.25 } },   // Light cyan
-
-                        // Iridescent edge halos
-                        { color: 0xffb3e6, intensity: 1.8, offset: { x: 0.2, y: 0.2, z: -0.2 } },    // Pink
-                        { color: 0xffffcc, intensity: 1.8, offset: { x: -0.2, y: 0.2, z: -0.2 } },   // Pale yellow
-                        { color: 0xccffff, intensity: 1.8, offset: { x: 0.2, y: -0.2, z: -0.2 } },   // Pale cyan
-                    ];
-
-                    chromaticLights.forEach(({ color, intensity, offset }) => {
-                        const light = new THREE.PointLight(color, intensity, 15, 2);
-                        light.position.set(offset.x, 0.75 + offset.y, offset.z);
-                        group.add(light);
-                    });
-
-                    // Store reference so we can update light positions if panel rotates
-                    group.userData.hasChromaticLights = true;
-                }
 
                 return group;
             },
