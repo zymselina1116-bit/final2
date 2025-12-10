@@ -190,7 +190,7 @@
             container: null,
 
             // Room dimensions
-            roomSize: { width: 20, height: 6, depth: 20 }, // 6m ceiling height (5-6m range)
+            roomSize: { width: 20, height: 12, depth: 20 }, // DOUBLED height: 12m tall gallery
 
             // Objects
             carousels: [],
@@ -354,10 +354,31 @@
                 ceiling.rotation.x = Math.PI / 2;
                 this.scene.add(ceiling);
 
-                // VERY LOW ambient light (0.05) - darkness through lighting, NOT grey walls
-                // White color (#FFFFFF) but very dim intensity
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.05);
+                // INCREASED ambient light for visible white room (not dark/grey)
+                // Soft uniform ambient filling entire volume
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
                 this.scene.add(ambientLight);
+
+                // SKYLIGHT at ceiling center - natural cool-white environmental light
+                // Subtle, diffused glow that brightens space without competing with spotlights
+                const skylightGeometry = new THREE.CircleGeometry(2, 32);
+                const skylightMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xf0f8ff, // Cool white (Alice Blue)
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const skylight = new THREE.Mesh(skylightGeometry, skylightMaterial);
+                skylight.position.set(0, height - 0.01, 0); // At ceiling center
+                skylight.rotation.x = -Math.PI / 2;
+                this.scene.add(skylight);
+
+                // Skylight illumination - soft directional from above
+                const skylightLight = new THREE.DirectionalLight(0xf0f8ff, 0.3);
+                skylightLight.position.set(0, height, 0);
+                skylightLight.target.position.set(0, 0, 0);
+                this.scene.add(skylightLight);
+                this.scene.add(skylightLight.target);
 
                 // Subtle edge lighting for corner definition (very soft, white tone)
                 const edgeLight1 = new THREE.DirectionalLight(0xffffff, 0.08);
@@ -745,12 +766,12 @@
                         opacity: 0.95
                     });
                 } else {
-                    // NORMAL material - translucent gray shadow
+                    // NORMAL material - LIGHTER translucent gray shadow
                     material = new THREE.MeshStandardMaterial({
-                        color: 0x808080,
+                        color: 0xb0b0b0, // Lighter gray
                         side: THREE.DoubleSide,
                         transparent: true,
-                        opacity: 0.85, // Increased opacity for darker shadows
+                        opacity: 0.5, // REDUCED opacity for lighter shadows
                         metalness: 0.0,
                         roughness: 0.9
                     });
@@ -766,51 +787,90 @@
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
-                // For laser panels, add FULL CHROMATIC DISPERSION layers
-                // Rainbow streaks, interference bands, holographic diffraction
+                // LASER CHROMATIC SHADOW - living, breathing rainbow diffraction
+                // Core: faint translucent silhouette + perimeter: dynamic rainbow halos
                 if (this.panelMaterial === 'laser') {
-                    // PRIMARY rainbow dispersion layers (like CD/prism/holographic foil)
-                    const colors = [
-                        0xff0000, 0xff4500, 0xff8c00, 0xffff00, // Red to Yellow
-                        0x00ff00, 0x00ff7f, 0x00ffff, 0x0080ff, // Green to Cyan to Blue
-                        0x0000ff, 0x4b0082, 0x8b00ff, 0xff00ff  // Blue to Violet to Magenta
+                    // CORE SILHOUETTE - soft, translucent base
+                    const coreMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xcccccc,
+                        transparent: true,
+                        opacity: 0.15, // Very faint core
+                        side: THREE.DoubleSide
+                    });
+                    const coreMesh = new THREE.Mesh(geometry.clone(), coreMaterial);
+                    coreMesh.position.y = 0.75;
+                    group.add(coreMesh);
+
+                    // RAINBOW HALOS - shifting chromatic edges (cyan, magenta, yellow, violet)
+                    const rainbowHalos = [
+                        { color: 0x00ffff, scale: 1.15 }, // Cyan outer
+                        { color: 0xff00ff, scale: 1.12 }, // Magenta
+                        { color: 0xffff00, scale: 1.09 }, // Yellow
+                        { color: 0x8b00ff, scale: 1.06 }, // Violet
+                        { color: 0xff69b4, scale: 1.04 }, // Pink
+                        { color: 0x00ff7f, scale: 1.02 }  // Spring green
                     ];
 
-                    colors.forEach((color, i) => {
-                        // Create multiple offset layers for chromatic dispersion
-                        const disperseMaterial = new THREE.MeshBasicMaterial({
+                    rainbowHalos.forEach(({color, scale}) => {
+                        const haloMaterial = new THREE.MeshBasicMaterial({
                             color: color,
                             transparent: true,
-                            opacity: 0.25, // Stronger visibility
-                            side: THREE.DoubleSide,
-                            blending: THREE.AdditiveBlending // Additive for interference
-                        });
-                        const disperseMesh = new THREE.Mesh(geometry.clone(), disperseMaterial);
-
-                        // Offset in different directions for rainbow spread
-                        const angle = (i / colors.length) * Math.PI * 2;
-                        const offsetX = Math.cos(angle) * 0.02;
-                        const offsetZ = Math.sin(angle) * 0.02;
-                        disperseMesh.position.set(offsetX, 0.75, offsetZ);
-                        disperseMesh.scale.set(1.03 + i * 0.008, 1.03 + i * 0.008, 1);
-                        group.add(disperseMesh);
-                    });
-
-                    // SECONDARY: Shimmering interference bands
-                    const interferenceColors = [0xff00ff, 0x00ffff, 0xffff00];
-                    interferenceColors.forEach((color, i) => {
-                        const interferenceMaterial = new THREE.MeshBasicMaterial({
-                            color: color,
-                            transparent: true,
-                            opacity: 0.15,
+                            opacity: 0.35, // Strong chromatic edges
                             side: THREE.DoubleSide,
                             blending: THREE.AdditiveBlending
                         });
-                        const interferenceMesh = new THREE.Mesh(geometry.clone(), interferenceMaterial);
-                        const offset = (i - 1) * 0.025;
-                        interferenceMesh.position.set(-offset, 0.75, offset);
-                        interferenceMesh.scale.set(1.06, 1.06, 1);
-                        group.add(interferenceMesh);
+                        const haloMesh = new THREE.Mesh(geometry.clone(), haloMaterial);
+                        haloMesh.position.y = 0.75;
+                        haloMesh.scale.set(scale, scale, 1);
+                        group.add(haloMesh);
+                    });
+
+                    // SPECTRAL GRADIENTS - rippling outward like CD interference
+                    const spectralColors = [
+                        0xff0000, 0xff8c00, 0xffff00, 0x00ff00, // Red→Orange→Yellow→Green
+                        0x00ffff, 0x0000ff, 0x8b00ff, 0xff00ff  // Cyan→Blue→Violet→Magenta
+                    ];
+
+                    spectralColors.forEach((color, i) => {
+                        const spectralMaterial = new THREE.MeshBasicMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: 0.25,
+                            side: THREE.DoubleSide,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const spectralMesh = new THREE.Mesh(geometry.clone(), spectralMaterial);
+
+                        // Radial offset pattern for rainbow rays
+                        const angle = (i / spectralColors.length) * Math.PI * 2;
+                        const radiusOffset = 0.03;
+                        spectralMesh.position.set(
+                            Math.cos(angle) * radiusOffset,
+                            0.75,
+                            Math.sin(angle) * radiusOffset
+                        );
+                        spectralMesh.scale.set(1.08 + i * 0.01, 1.08 + i * 0.01, 1);
+                        group.add(spectralMesh);
+                    });
+
+                    // DYNAMIC SHIMMERING - micro-spectrum layers
+                    const shimmerColors = [0x00ffff, 0xff00ff, 0xffff00, 0x00ff00];
+                    shimmerColors.forEach((color, i) => {
+                        const shimmerMaterial = new THREE.MeshBasicMaterial({
+                            color: color,
+                            transparent: true,
+                            opacity: 0.2,
+                            side: THREE.DoubleSide,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const shimmerMesh = new THREE.Mesh(geometry.clone(), shimmerMaterial);
+                        shimmerMesh.position.set(
+                            (i - 1.5) * 0.015,
+                            0.75,
+                            (i - 1.5) * 0.015
+                        );
+                        shimmerMesh.scale.set(1.1 + i * 0.02, 1.1 + i * 0.02, 1);
+                        group.add(shimmerMesh);
                     });
                 }
 
@@ -1009,26 +1069,16 @@
             },
 
             updateCameraPosition() {
-                // FIXED elevated camera position: 2.4 meters high, centered
-                // Camera CANNOT move - only rotation allowed
-                // "Elevated observer inside gallery" - NOT top-down, NOT floor-level
-                const cameraY = 2.4; // Elevated observer height
-                const cameraX = 0;   // Center of room
-                const cameraZ = 0;   // Center of room
+                // HARD CAMERA START PATCH - Stand near opposite wall
+                // Shadow wall at Z ≈ -10, opposite wall at Z ≈ +10
+                // Camera 0.5m from opposite wall = Z = 7.5
+                this.camera.position.set(0, 1.8, 7.5);
 
-                this.camera.position.set(cameraX, cameraY, cameraZ);
+                // ALWAYS face toward shadow wall
+                this.camera.lookAt(0, 1.6, 0);
 
-                // Calculate look direction from yaw and pitch (rotation only)
-                const lookX = Math.cos(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
-                const lookY = Math.sin(this.lookRotation.pitch);
-                const lookZ = Math.sin(this.lookRotation.yaw) * Math.cos(this.lookRotation.pitch);
-
-                // Set camera to look in that direction
-                this.camera.lookAt(
-                    this.camera.position.x + lookX,
-                    this.camera.position.y + lookY,
-                    this.camera.position.z + lookZ
-                );
+                // Rotation ONLY - no position changes allowed
+                // This will be overridden by orbit controls if used
             },
 
             onResize() {
