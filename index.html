@@ -433,6 +433,36 @@
                     roughness: 0.85,      // Slightly rougher for concrete
                     metalness: 0.0
                 });
+
+                // ROOM EDGE PATCH: Add ambient occlusion along edges for depth definition
+                floorMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `
+                        #include <dithering_fragment>
+
+                        // Room edge ambient occlusion
+                        vec3 worldPos = vWorldPosition;
+                        float edgeAOIntensity = 0.22;
+                        float edgeAORadius = 0.65;
+                        float cornerBoost = 0.06;
+
+                        // Detect proximity to room edges (floor edges at walls)
+                        float distToEdgeX = min(abs(worldPos.x - ${width/2}.0), abs(worldPos.x + ${width/2}.0));
+                        float distToEdgeZ = min(abs(worldPos.z - ${depth/2}.0), abs(worldPos.z + ${depth/2}.0));
+                        float distToEdge = min(distToEdgeX, distToEdgeZ);
+
+                        // Smooth edge factor
+                        float edgeFactor = smoothstep(edgeAORadius, 0.0, distToEdge);
+                        float aoTerm = edgeFactor * edgeAOIntensity;
+
+                        // Apply AO darkening and subtle corner boost
+                        gl_FragColor.rgb *= (1.0 - aoTerm);
+                        gl_FragColor.rgb += cornerBoost * edgeFactor;
+                        `
+                    );
+                };
+
                 const floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 floor.rotation.x = -Math.PI / 2;
                 floor.receiveShadow = true;
@@ -470,6 +500,36 @@
                     roughness: 0.95,  // Very matte
                     metalness: 0.0
                 });
+
+                // ROOM EDGE PATCH: Add ambient occlusion along wall edges for depth definition
+                wallMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `
+                        #include <dithering_fragment>
+
+                        // Room edge ambient occlusion for walls
+                        vec3 worldPos = vWorldPosition;
+                        float edgeAOIntensity = 0.22;
+                        float edgeAORadius = 0.65;
+                        float cornerBoost = 0.06;
+
+                        // Detect proximity to wall corners and edges
+                        float distToEdgeX = min(abs(worldPos.x - ${width/2}.0), abs(worldPos.x + ${width/2}.0));
+                        float distToEdgeY = min(abs(worldPos.y - ${height}.0), abs(worldPos.y));
+                        float distToEdgeZ = min(abs(worldPos.z - ${depth/2}.0), abs(worldPos.z + ${depth/2}.0));
+                        float distToEdge = min(min(distToEdgeX, distToEdgeY), distToEdgeZ);
+
+                        // Smooth edge factor
+                        float edgeFactor = smoothstep(edgeAORadius, 0.0, distToEdge);
+                        float aoTerm = edgeFactor * edgeAOIntensity;
+
+                        // Apply AO darkening and subtle corner boost
+                        gl_FragColor.rgb *= (1.0 - aoTerm);
+                        gl_FragColor.rgb += cornerBoost * edgeFactor;
+                        `
+                    );
+                };
 
                 // Back wall
                 const backWall = new THREE.Mesh(
@@ -527,7 +587,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.12);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.18);
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
@@ -815,15 +875,15 @@
                 group.userData.fixture = fixture;
 
                 // Pure WHITE spotlight - SOFT GALLERY LIGHTING with MULTIPLICATIVE SHADOW LAYERING
-                // Base intensity: 0.7 (balanced for lighter shadows)
-                // Penumbra: 0.7 (smooth, real-world edges)
+                // Base intensity: 0.644 (0.7 * 0.92 - prevents over-flattening walls)
+                // Penumbra: 0.8 (smoother blend, room edges stay visible)
                 // Decay: 2.0 (natural falloff)
                 // Multiple spotlights ADD light, clamped to ~1.8 for natural intersections
                 // Shadows use multiplicative layering:
-                //   Single shadow = lighter (increased ambient light)
+                //   Single shadow = lighter (increased ambient light to 0.18)
                 //   Intersecting shadows = naturally darker (2, 3, 4+ layers accumulate)
                 //   More layers = progressively darker intersection
-                const light = new THREE.SpotLight(0xffffff, 0.7, 40, Math.PI / 5, 0.7, 2);
+                const light = new THREE.SpotLight(0xffffff, 0.644, 40, Math.PI / 5, 0.8, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
