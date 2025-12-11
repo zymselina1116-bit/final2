@@ -126,18 +126,47 @@
         .draw-button {
             margin-top: 20px;
             padding: 12px 40px;
-            background: white;
+            background: transparent;
             border: none;
-            font-size: 14px;
+            font-family: 'Bungee Hairline', sans-serif;
+            font-size: 18px;
             cursor: pointer;
-            color: #2c2c2c;
-            letter-spacing: 0.5px;
-            border-radius: 6px;
+            color: white;
+            letter-spacing: 2px;
             font-weight: 400;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            transition: all 0.3s ease;
         }
 
         .draw-button:hover {
-            background: #f0f0f0;
+            transform: scale(1.12);
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.9),
+                         0 0 60px rgba(255, 255, 255, 0.7);
+            filter: brightness(1.3);
+        }
+
+        .material-btn {
+            padding: 10px 24px;
+            background: transparent !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 0;
+            cursor: pointer;
+            font-family: 'Bungee Hairline', sans-serif;
+            font-size: 16px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
+            transition: all 0.3s ease;
+        }
+
+        .material-btn:hover {
+            transform: scale(1.15);
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.9),
+                         0 0 60px rgba(255, 255, 255, 0.7);
+            filter: brightness(1.3);
         }
 
         #instructions {
@@ -255,11 +284,11 @@
     </div>
 
     <div id="drawing-interface">
-        <div style="margin-bottom: 20px; text-align: center;">
+        <div id="material-selection" style="margin-bottom: 20px; text-align: center;">
             <div style="font-size: 13px; font-weight: 400; color: white; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Panel Material</div>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button id="materialNormal" class="material-btn" onclick="app.selectPanelMaterial('normal')" style="padding: 10px 24px; background: white; color: #2c2c2c; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 400;">Normal (Cloth)</button>
-                <button id="materialLaser" class="material-btn" onclick="app.selectPanelMaterial('laser')" style="padding: 10px 24px; background: transparent; color: white; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 400;">Laser (Holographic)</button>
+            <div style="display: flex; gap: 24px; justify-content: center;">
+                <button id="materialNormal" class="material-btn" onclick="app.selectPanelMaterial('normal')">NORMAL</button>
+                <button id="materialLaser" class="material-btn" onclick="app.selectPanelMaterial('laser')">LASER</button>
             </div>
         </div>
         <canvas id="drawingCanvas" width="400" height="400"></canvas>
@@ -601,6 +630,8 @@
             createCarousel() {
                 document.getElementById('choiceMenu').style.display = 'none';
                 this.placementMode = 'carousel';
+                // Hide material selection for carousel
+                document.getElementById('material-selection').style.display = 'none';
                 this.startDrawing();
             },
 
@@ -608,6 +639,8 @@
                 document.getElementById('choiceMenu').style.display = 'none';
                 this.placementMode = 'panel';
                 this.panelMaterial = 'normal'; // Reset to default
+                // Show material selection for panel
+                document.getElementById('material-selection').style.display = 'block';
                 this.updateMaterialButtons();
                 this.startDrawing();
             },
@@ -621,16 +654,17 @@
                 const normalBtn = document.getElementById('materialNormal');
                 const laserBtn = document.getElementById('materialLaser');
 
+                // Use opacity to indicate selection instead of background
                 if (this.panelMaterial === 'normal') {
-                    normalBtn.style.background = 'white';
-                    normalBtn.style.color = '#2c2c2c';
-                    laserBtn.style.background = 'transparent';
-                    laserBtn.style.color = 'white';
+                    normalBtn.style.opacity = '1';
+                    normalBtn.style.textShadow = '0 0 30px rgba(255, 255, 255, 1), 0 0 50px rgba(255, 255, 255, 0.8)';
+                    laserBtn.style.opacity = '0.5';
+                    laserBtn.style.textShadow = '0 0 20px rgba(255, 255, 255, 0.6)';
                 } else {
-                    normalBtn.style.background = 'transparent';
-                    normalBtn.style.color = 'white';
-                    laserBtn.style.background = 'white';
-                    laserBtn.style.color = '#2c2c2c';
+                    normalBtn.style.opacity = '0.5';
+                    normalBtn.style.textShadow = '0 0 20px rgba(255, 255, 255, 0.6)';
+                    laserBtn.style.opacity = '1';
+                    laserBtn.style.textShadow = '0 0 30px rgba(255, 255, 255, 1), 0 0 50px rgba(255, 255, 255, 0.8)';
                 }
             },
 
