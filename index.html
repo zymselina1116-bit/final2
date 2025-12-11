@@ -483,8 +483,8 @@
                 // NO shadows cast, NO shadows received, NO visible thickness
                 // ═══════════════════════════════════════════════════════════════
 
-                // MAIN PULSE DISK - very small PlaneGeometry
-                const diskSize = 0.15; // Diameter 0.3m (within 0.25-0.35m range)
+                // MAIN PULSE DISK - TINY DOT on floor
+                const diskSize = 0.04; // Very small dot (~4cm diameter)
                 const geometry = new THREE.PlaneGeometry(diskSize, diskSize);
                 const material = new THREE.MeshBasicMaterial({
                     color: 0xffffff,  // Pure white (emissive + bloom)
@@ -505,13 +505,12 @@
 
                 this.scene.add(this.glowingPoint);
 
-                // SOFT GLOW BLOOM LAYERS (all PlaneGeometry, all flat on floor)
-                // Creates soft hot spot effect like gallery floor reflection
+                // TINY GLOW BLOOM LAYERS (proportional to small dot size)
                 const glowLayers = [
-                    { size: 0.3, opacity: 0.7 },   // Inner glow
-                    { size: 0.5, opacity: 0.5 },   // Mid bloom
-                    { size: 0.8, opacity: 0.3 },   // Outer bloom
-                    { size: 1.2, opacity: 0.15 },  // Far soft halo
+                    { size: 0.08, opacity: 0.8 },   // Inner glow (2× dot)
+                    { size: 0.15, opacity: 0.6 },   // Mid bloom
+                    { size: 0.25, opacity: 0.4 },   // Outer bloom
+                    { size: 0.4, opacity: 0.2 },    // Far soft halo
                 ];
 
                 glowLayers.forEach(({ size, opacity }) => {
