@@ -780,20 +780,27 @@
                 group.add(fixture);
                 group.userData.fixture = fixture;
 
-                // Pure WHITE spotlight (no colors) - ENHANCED for visible shadows
-                const light = new THREE.SpotLight(0xffffff, 5, 40, Math.PI / 5, 0.8, 2);
+                // Pure WHITE spotlight - SOFT GALLERY LIGHTING with MULTIPLICATIVE SHADOW LAYERING
+                // Base intensity: 0.65 (softer, more gallery-like)
+                // Penumbra: 0.7 (smooth, real-world edges)
+                // Decay: 2.0 (natural falloff)
+                // Multiple spotlights ADD light, clamped to ~1.8 for natural intersections
+                // Shadows use multiplicative layering:
+                //   shadowOpacity = 0.24 (single layer - soft, not dead)
+                //   finalOpacity = 1 - pow(1 - 0.24, layerCount)
+                //   Result: 1 layer = 0.24, 2 layers ≈ 0.42, 3 layers ≈ 0.53, 4 layers ≈ 0.62
+                const light = new THREE.SpotLight(0xffffff, 0.65, 40, Math.PI / 5, 0.7, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
-                // SHADOW SETTINGS - only a little blur on edges
-                // Physically-correct penumbra: distance-based softness
-                // Close to wall = sharp, far = softer, never muddy
-                light.shadow.mapSize.width = 4096;  // High resolution for detail
+                // SHADOW SETTINGS - soft edges, multiplicative darkening
+                // High resolution for detail, subtle bias for proper layering
+                light.shadow.mapSize.width = 4096;
                 light.shadow.mapSize.height = 4096;
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 0.4; // Just a little blur on edges (not much)
+                light.shadow.radius = 0.4; // Soft edge blur (1-3px equivalent)
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
