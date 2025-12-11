@@ -44,7 +44,7 @@
 
         .ui-title {
             font-size: 13px;
-            font-weight: 100;
+            font-weight: 400;
             margin-bottom: 10px;
             color: #333;
             text-transform: uppercase;
@@ -133,7 +133,7 @@
             color: #2c2c2c;
             letter-spacing: 0.5px;
             border-radius: 6px;
-            font-weight: 100;
+            font-weight: 400;
         }
 
         .draw-button:hover {
@@ -248,7 +248,7 @@
 
     <!-- Choice Menu (appears when clicking glowing point) -->
     <div id="choiceMenu" style="position: absolute; display: none; flex-direction: column; gap: 12px; padding: 20px; background: rgba(255,255,255,0.95); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 150;">
-        <div style="font-size: 14px; font-weight: 100; color: #333; margin-bottom: 8px; text-align: center;">Add Object</div>
+        <div style="font-size: 14px; font-weight: 400; color: #333; margin-bottom: 8px; text-align: center;">Add Object</div>
         <button class="choice-btn" onclick="app.createSpotlight()" style="padding: 12px 24px; background: #2c2c2c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Spotlight</button>
         <button class="choice-btn" onclick="app.createPanel()" style="padding: 12px 24px; background: #2c2c2c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Panel</button>
         <button class="choice-btn" onclick="app.createCarousel()" style="padding: 12px 24px; background: #2c2c2c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s;">Carousel</button>
@@ -256,10 +256,10 @@
 
     <div id="drawing-interface">
         <div style="margin-bottom: 20px; text-align: center;">
-            <div style="font-size: 13px; font-weight: 100; color: white; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Panel Material</div>
+            <div style="font-size: 13px; font-weight: 400; color: white; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;">Panel Material</div>
             <div style="display: flex; gap: 12px; justify-content: center;">
-                <button id="materialNormal" class="material-btn" onclick="app.selectPanelMaterial('normal')" style="padding: 10px 24px; background: white; color: #2c2c2c; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 100;">Normal (Cloth)</button>
-                <button id="materialLaser" class="material-btn" onclick="app.selectPanelMaterial('laser')" style="padding: 10px 24px; background: transparent; color: white; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 100;">Laser (Holographic)</button>
+                <button id="materialNormal" class="material-btn" onclick="app.selectPanelMaterial('normal')" style="padding: 10px 24px; background: white; color: #2c2c2c; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 400;">Normal (Cloth)</button>
+                <button id="materialLaser" class="material-btn" onclick="app.selectPanelMaterial('laser')" style="padding: 10px 24px; background: transparent; color: white; border: 2px solid white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 400;">Laser (Holographic)</button>
             </div>
         </div>
         <canvas id="drawingCanvas" width="400" height="400"></canvas>
