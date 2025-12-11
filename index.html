@@ -150,12 +150,99 @@
             text-align: center;
             letter-spacing: 0.3px;
         }
+
+        /* ═══════════════════════════════════════════════════════════════ */
+        /* ADD BUTTON & MENU (REPLACES PULSE POINT) */
+        /* ═══════════════════════════════════════════════════════════════ */
+        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@100&display=swap');
+
+        #addButton {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Raleway', sans-serif;
+            font-weight: 100;
+            font-size: 24px;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            cursor: pointer;
+            z-index: 200;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.6),
+                         0 0 40px rgba(255, 255, 255, 0.4);
+            animation: addPulse 3s ease-in-out infinite;
+            transition: all 0.3s ease;
+        }
+
+        #addButton:hover {
+            transform: translateX(-50%) scale(1.1);
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                         0 0 60px rgba(255, 255, 255, 0.6);
+        }
+
+        @keyframes addPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1.0; }
+        }
+
+        #addMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 80px;
+            z-index: 300;
+            backdrop-filter: blur(10px);
+        }
+
+        #addMenu.active {
+            display: flex;
+        }
+
+        .menu-option {
+            font-family: 'Raleway', sans-serif;
+            font-weight: 100;
+            font-size: 120px;
+            color: #FFFFFF;
+            text-transform: uppercase;
+            letter-spacing: 20px;
+            cursor: pointer;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.5),
+                         0 0 80px rgba(255, 255, 255, 0.3);
+            transition: all 0.4s ease;
+            user-select: none;
+        }
+
+        .menu-option:hover {
+            transform: scale(1.15);
+            text-shadow: 0 0 60px rgba(255, 255, 255, 0.9),
+                         0 0 120px rgba(255, 255, 255, 0.6),
+                         0 0 180px rgba(255, 255, 255, 0.4);
+            letter-spacing: 25px;
+        }
     </style>
 </head>
 <body>
     <div id="canvas-container"></div>
 
     <div id="ui-overlay"></div>
+
+    <!-- ADD BUTTON (replaces pulse point) -->
+    <div id="addButton">ADD</div>
+
+    <!-- ADD MENU (full-screen overlay with three big words) -->
+    <div id="addMenu">
+        <div class="menu-option" onclick="app.selectFromMenu('spotlight')">SPOTLIGHT</div>
+        <div class="menu-option" onclick="app.selectFromMenu('panel')">PANEL</div>
+        <div class="menu-option" onclick="app.selectFromMenu('carousel')">CAROUSEL</div>
+    </div>
 
     <!-- Choice Menu (appears when clicking glowing point) -->
     <div id="choiceMenu" style="position: absolute; display: none; flex-direction: column; gap: 12px; padding: 20px; background: rgba(255,255,255,0.95); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 150;">
@@ -178,7 +265,7 @@
     </div>
 
     <div id="instructions">
-        Drag to look around • Click glowing point to add objects • Drag objects to move/rotate
+        Drag to look around • Click ADD to create objects • Drag objects to move/rotate
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -269,8 +356,8 @@
                 // Build room
                 this.createRoom();
 
-                // Create glowing point
-                this.createGlowingPoint();
+                // Setup ADD button and menu (replaces glowing point)
+                this.setupAddUI();
 
                 // Event listeners
                 this.setupEventListeners();
@@ -474,72 +561,38 @@
                 }
             },
 
-            createGlowingPoint() {
-                // ═══════════════════════════════════════════════════════════════
-                // PERFECTLY FLAT GROUND GLOW (NO 3D EXTRUSION)
-                // ═══════════════════════════════════════════════════════════════
-                // PlaneGeometry (not Circle, not Sphere) - perfectly flat
-                // Looks like soft hot spot on floor (gallery floor reflection)
-                // NO shadows cast, NO shadows received, NO visible thickness
-                // ═══════════════════════════════════════════════════════════════
+            // ═══════════════════════════════════════════════════════════════
+            // ADD UI SYSTEM (REPLACES PULSE POINT)
+            // ═══════════════════════════════════════════════════════════════
+            setupAddUI() {
+                const addButton = document.getElementById('addButton');
+                const addMenu = document.getElementById('addMenu');
 
-                // MAIN PULSE DISK - TINY DOT on floor
-                const diskSize = 0.04; // Very small dot (~4cm diameter)
-                const geometry = new THREE.PlaneGeometry(diskSize, diskSize);
-                const material = new THREE.MeshBasicMaterial({
-                    color: 0xffffff,  // Pure white (emissive + bloom)
-                    transparent: false,
-                    side: THREE.DoubleSide,
-                    depthWrite: false  // Prevents z-fighting
-                });
-                this.glowingPoint = new THREE.Mesh(geometry, material);
-
-                // Position on floor + rotate EXACTLY -90° on X axis (lies flat)
-                this.glowingPoint.position.set(0, 0.005, 0); // Barely above floor
-                this.glowingPoint.rotation.x = -Math.PI / 2; // EXACTLY -90° - lies perfectly flat
-                this.glowingPoint.userData.type = 'glowingPoint';
-
-                // CRITICAL: NO shadows (must not cast or receive)
-                this.glowingPoint.castShadow = false;
-                this.glowingPoint.receiveShadow = false;
-
-                this.scene.add(this.glowingPoint);
-
-                // TINY GLOW BLOOM LAYERS (proportional to small dot size)
-                const glowLayers = [
-                    { size: 0.08, opacity: 0.8 },   // Inner glow (2× dot)
-                    { size: 0.15, opacity: 0.6 },   // Mid bloom
-                    { size: 0.25, opacity: 0.4 },   // Outer bloom
-                    { size: 0.4, opacity: 0.2 },    // Far soft halo
-                ];
-
-                glowLayers.forEach(({ size, opacity }) => {
-                    const glowGeometry = new THREE.PlaneGeometry(size, size);
-                    const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xffffff,
-                        transparent: true,
-                        opacity: opacity,
-                        blending: THREE.AdditiveBlending,  // Bloom effect
-                        side: THREE.DoubleSide,
-                        depthWrite: false
-                    });
-                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-
-                    // Rotate to lie flat (EXACTLY -90° on X)
-                    glow.rotation.x = -Math.PI / 2;
-                    glow.position.y = 0.001; // Slightly above main disk
-
-                    // NO shadows
-                    glow.castShadow = false;
-                    glow.receiveShadow = false;
-
-                    this.glowingPoint.add(glow);
+                // Click ADD button to open menu
+                addButton.addEventListener('click', () => {
+                    addMenu.classList.add('active');
                 });
 
-                // POINT LIGHT for illumination (positioned at floor level)
-                const pointLight = new THREE.PointLight(0xffffff, 4.0, 15, 2);
-                pointLight.position.set(0, 0, 0);
-                this.glowingPoint.add(pointLight);
+                // Click anywhere on menu background to close
+                addMenu.addEventListener('click', (e) => {
+                    if (e.target === addMenu) {
+                        addMenu.classList.remove('active');
+                    }
+                });
+            },
+
+            selectFromMenu(type) {
+                const addMenu = document.getElementById('addMenu');
+                addMenu.classList.remove('active');
+
+                // Call the same functions as before
+                if (type === 'spotlight') {
+                    this.createSpotlight();
+                } else if (type === 'panel') {
+                    this.createPanel();
+                } else if (type === 'carousel') {
+                    this.createCarousel();
+                }
             },
 
 
