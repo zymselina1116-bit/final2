@@ -527,7 +527,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.08);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.12);
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
@@ -815,26 +815,26 @@
                 group.userData.fixture = fixture;
 
                 // Pure WHITE spotlight - SOFT GALLERY LIGHTING with MULTIPLICATIVE SHADOW LAYERING
-                // Base intensity: 0.85 (slightly brighter for better visibility)
+                // Base intensity: 0.7 (balanced for lighter shadows)
                 // Penumbra: 0.7 (smooth, real-world edges)
                 // Decay: 2.0 (natural falloff)
                 // Multiple spotlights ADD light, clamped to ~1.8 for natural intersections
                 // Shadows use multiplicative layering:
-                //   shadowOpacity = 0.24 (single layer - soft, not dead)
-                //   finalOpacity = 1 - pow(1 - 0.24, layerCount)
-                //   Result: 1 layer = 0.24, 2 layers ≈ 0.42, 3 layers ≈ 0.53, 4 layers ≈ 0.62
-                const light = new THREE.SpotLight(0xffffff, 0.85, 40, Math.PI / 5, 0.7, 2);
+                //   Single shadow = lighter (increased ambient light)
+                //   Intersecting shadows = naturally darker (2, 3, 4+ layers accumulate)
+                //   More layers = progressively darker intersection
+                const light = new THREE.SpotLight(0xffffff, 0.7, 40, Math.PI / 5, 0.7, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
-                // SHADOW SETTINGS - soft edges, multiplicative darkening
+                // SHADOW SETTINGS - lighter with slightly blurred edges, multiplicative intersections
                 // High resolution for detail, subtle bias for proper layering
                 light.shadow.mapSize.width = 4096;
                 light.shadow.mapSize.height = 4096;
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 0.4; // Soft edge blur (1-3px equivalent)
+                light.shadow.radius = 0.7; // Slightly blurred edges (not much, just a little)
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
