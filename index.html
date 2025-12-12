@@ -815,14 +815,14 @@
                 group.userData.fixture = fixture;
 
                 // Pure WHITE spotlight - BRIGHTER for darker room, soft realistic gallery lighting
-                // Base intensity: 1.5 (brighter spotlight)
+                // Base intensity: 1.8 (brighter spotlight)
                 // Penumbra: 0.7 (smooth, real-world edges)
                 // Decay: 2.0 (natural falloff)
                 // Ambient: 0.14 (lighter shadows)
                 // Shadows use multiplicative layering:
                 //   Intersecting shadows = naturally darker (2, 3, 4+ layers accumulate)
                 //   More layers = progressively darker intersection
-                const light = new THREE.SpotLight(0xffffff, 1.5, 40, Math.PI / 5, 0.7, 2);
+                const light = new THREE.SpotLight(0xffffff, 1.8, 40, Math.PI / 5, 0.7, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
