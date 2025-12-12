@@ -471,60 +471,28 @@
                     metalness: 0.0
                 });
 
-                // ATMOSPHERIC WALL GRADIENT: Professional gallery lighting with depth and volume
+                // SIMPLE CORNER AMBIENT OCCLUSION: Slightly darker where planes meet
                 wallMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace(
                         '#include <dithering_fragment>',
                         `
                         #include <dithering_fragment>
 
-                        // Professional gallery wall lighting - atmospheric depth and volume
+                        // Soft corner ambient occlusion for depth
                         vec3 worldPos = vWorldPosition;
-                        vec3 worldNormal = normalize(vNormal);
 
-                        // VERTICAL LUMINANCE GRADIENT (subtle, smooth, no banding)
-                        // Upper walls slightly brighter (soft ambient bounce from overhead)
-                        // Lower walls slightly darker (floor proximity)
-                        float heightFactor = (worldPos.y) / ${height}.0;
-                        heightFactor = clamp(heightFactor, 0.0, 1.0);
-
-                        // Smooth vertical gradient with multiple easing for natural falloff
-                        float verticalGradient = smoothstep(0.0, 0.6, heightFactor);
-                        verticalGradient = mix(verticalGradient, smoothstep(0.2, 1.0, heightFactor), 0.4);
-
-                        // Base darkness with subtle upper brightening
-                        float baseLuminance = 0.88;  // Keep walls dark
-                        float topLuminance = 1.08;   // Upper area slightly brighter
-                        float luminanceMult = mix(baseLuminance, topLuminance, verticalGradient);
-
-                        // GENTLE CORNER AMBIENT OCCLUSION (soft separation of planes)
+                        // Calculate distance to room edges/corners
                         float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
                         float distToEdgeY = min(abs(worldPos.y - ${height}.0), abs(worldPos.y - 0.0));
                         float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
                         float distToCorner = min(min(distToEdgeX, distToEdgeY), distToEdgeZ);
 
-                        // Very soft AO, just enough to separate planes
-                        float cornerAO = smoothstep(0.0, 1.2, distToCorner);
-                        cornerAO = mix(0.92, 1.0, cornerAO);  // Gentle darkening, not harsh
+                        // Soft AO - corners slightly darker, gradual falloff
+                        float cornerAO = smoothstep(0.0, 1.5, distToCorner);
+                        cornerAO = mix(0.90, 1.0, cornerAO);  // Slightly darker at corners (10% max)
 
-                        // SOFT AMBIENT BOUNCE (subtle tonal variation for atmospheric depth)
-                        // Simulates scattered light in gallery air
-                        float ambientBounce = 1.0 + (verticalGradient * 0.06);  // Very subtle
-
-                        // COMBINE ALL ATMOSPHERIC EFFECTS
-                        float finalLuminance = luminanceMult * cornerAO * ambientBounce;
-
-                        // Apply to wall color (multiply for natural darkening/lightening)
-                        gl_FragColor.rgb *= finalLuminance;
-
-                        // Add ultra-subtle warm bounce from floor (gallery atmosphere)
-                        float floorBounce = (1.0 - heightFactor) * 0.015;
-                        gl_FragColor.rgb += vec3(floorBounce * 0.95, floorBounce * 0.94, floorBounce * 0.92);
-
-                        // Ensure walls don't become flat - add micro-tonal variation
-                        // This prevents uniform color blocks
-                        float microVariation = fract(sin(dot(worldPos.xz, vec2(12.9898, 78.233))) * 43758.5453) * 0.008;
-                        gl_FragColor.rgb += microVariation;
+                        // Apply corner AO (multiply existing lighting)
+                        gl_FragColor.rgb *= cornerAO;
                         `
                     );
                 };
