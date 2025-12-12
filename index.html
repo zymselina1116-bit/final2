@@ -433,6 +433,34 @@
                     roughness: 0.85,      // Slightly rougher for concrete
                     metalness: 0.0
                 });
+
+                // Apply depth gradient to floor (darker near viewer, brighter toward back)
+                floorMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `#include <dithering_fragment>
+
+                        // Smooth depth gradient for floor
+                        vec2 gradUV = vUv;
+
+                        // Depth gradient: FRONT (near viewer) DARKER, BACK (far) BRIGHTER
+                        float depthBias = mix(-0.12, 0.08, smoothstep(0.0, 1.0, gradUV.y));
+
+                        // Subtle edge darkening
+                        float edgeDist = min(
+                            min(gradUV.x, 1.0 - gradUV.x),
+                            min(gradUV.y, 1.0 - gradUV.y)
+                        ) * 2.0;
+                        float edgeDarkening = mix(-0.08, 0.0, smoothstep(0.0, 0.3, edgeDist));
+
+                        float gradientBias = depthBias + edgeDarkening;
+                        gradientBias = clamp(gradientBias, -0.15, 0.10);
+
+                        gl_FragColor.rgb *= (1.0 + gradientBias);
+                        `
+                    );
+                };
+
                 const floor = new THREE.Mesh(floorGeometry, floorMaterial);
                 floor.rotation.x = -Math.PI / 2;
                 floor.receiveShadow = true;
@@ -465,15 +493,22 @@
                 wallTexture.wrapT = THREE.RepeatWrapping;
                 wallTexture.repeat.set(2, 2);
 
+                // Wall material for back/front walls (NO gradient)
                 const wallMaterial = new THREE.MeshStandardMaterial({
                     map: wallTexture,
                     roughness: 0.95,  // Very matte
                     metalness: 0.0
                 });
 
-                // Museum-style environmental lighting gradient (baked into wall material)
-                // Simple smooth depth gradient: darker near viewer, brighter toward back
-                wallMaterial.onBeforeCompile = (shader) => {
+                // Side wall material for left/right walls (WITH gradient)
+                const sideWallMaterial = new THREE.MeshStandardMaterial({
+                    map: wallTexture,
+                    roughness: 0.95,
+                    metalness: 0.0
+                });
+
+                // Apply depth gradient to side walls only
+                sideWallMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace(
                         '#include <dithering_fragment>',
                         `#include <dithering_fragment>
@@ -481,7 +516,7 @@
                         // Smooth depth gradient for left/right walls
                         vec2 gradUV = vUv;
 
-                        // Depth gradient: BOTTOM (near viewer) DARKER, TOP (near front wall) BRIGHTER
+                        // Depth gradient: BOTTOM (near viewer) DARKER, TOP (near back wall) BRIGHTER
                         // Very smooth and gentle transition
                         float depthBias = mix(-0.12, 0.08, smoothstep(0.0, 1.0, gradUV.y));
 
@@ -512,20 +547,20 @@
                 backWall.receiveShadow = true;
                 this.scene.add(backWall);
 
-                // Left wall
+                // Left wall (with depth gradient)
                 const leftWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(depth, height),
-                    wallMaterial
+                    sideWallMaterial
                 );
                 leftWall.position.set(-width / 2, height / 2, 0);
                 leftWall.rotation.y = Math.PI / 2;
                 leftWall.receiveShadow = true;
                 this.scene.add(leftWall);
 
-                // Right wall
+                // Right wall (with depth gradient)
                 const rightWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(depth, height),
-                    wallMaterial
+                    sideWallMaterial
                 );
                 rightWall.position.set(width / 2, height / 2, 0);
                 rightWall.rotation.y = -Math.PI / 2;
