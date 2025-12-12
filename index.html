@@ -471,40 +471,6 @@
                     metalness: 0.0
                 });
 
-                // SUBTLE ATMOSPHERIC GRADIENT: Add depth without changing base lighting
-                // ONLY adds a gentle vertical gradient, does NOT replace any existing lighting
-                wallMaterial.onBeforeCompile = (shader) => {
-                    shader.fragmentShader = shader.fragmentShader.replace(
-                        '#include <dithering_fragment>',
-                        `
-                        #include <dithering_fragment>
-
-                        // Very subtle atmospheric gradient for architectural depth
-                        // Multiplicative only - preserves all existing lighting and shading
-                        vec3 worldPos = vWorldPosition;
-                        float roomHeight = ${height}.0;
-                        float eyeLevel = roomHeight * 0.5;  // Center/eye level
-
-                        // Normalized height (0 at floor, 1 at ceiling)
-                        float heightFactor = worldPos.y / roomHeight;
-
-                        // Gradient factor centered at eye level
-                        // Lower: 0.97 (-3%), Center: 1.0 (no change), Upper: 1.05 (+5%)
-                        float gradientFactor;
-                        if (heightFactor < 0.5) {
-                            // Lower half: fade from 0.97 to 1.0
-                            gradientFactor = mix(0.97, 1.0, heightFactor * 2.0);
-                        } else {
-                            // Upper half: fade from 1.0 to 1.05
-                            gradientFactor = mix(1.0, 1.05, (heightFactor - 0.5) * 2.0);
-                        }
-
-                        // Multiply existing color by gradient (preserves all lighting)
-                        gl_FragColor.rgb *= gradientFactor;
-                        `
-                    );
-                };
-
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
