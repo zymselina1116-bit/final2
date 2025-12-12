@@ -472,33 +472,37 @@
                 });
 
                 // Museum-style environmental lighting gradient (baked into wall material)
-                // This creates subtle spatial depth independent of spotlight
+                // Enhanced with depth gradient for left/right walls and corner darkening
                 wallMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace(
                         '#include <dithering_fragment>',
                         `#include <dithering_fragment>
 
-                        // Museum-style environmental gradient (NOT a shadow, NOT tied to spotlight)
-                        // Soft ambient shading for architectural depth
+                        // Enhanced museum gradient with depth and corner effects
                         vec2 gradUV = vUv;
 
-                        // Horizontal gradient: center brighter (+6%), edges darker (-10%)
-                        // Creates feeling of wall curving away at edges
+                        // Horizontal gradient: center brighter, edges darker for depth
+                        // Left/right walls: creates depth (bright at back, dark at front)
                         float horizontalDist = abs(gradUV.x - 0.5) * 2.0; // 0 at center, 1 at edges
-                        float horizontalBias = mix(0.06, -0.10, smoothstep(0.0, 1.0, horizontalDist));
+                        float horizontalBias = mix(0.08, -0.15, smoothstep(0.0, 1.0, horizontalDist));
 
-                        // Vertical gradient: ceiling brighter (+4%), floor darker (-4%)
-                        // Subtle architectural shading
-                        float verticalBias = mix(-0.04, 0.04, smoothstep(0.0, 1.0, gradUV.y));
+                        // Vertical gradient: ceiling brighter, floor darker
+                        float verticalBias = mix(-0.06, 0.05, smoothstep(0.0, 1.0, gradUV.y));
 
-                        // Combine gradients smoothly
-                        float gradientBias = horizontalBias + verticalBias * 0.5;
+                        // Corner darkening: all four corners darker for room depth
+                        // Distance from corners (0 at corners, 1 at center)
+                        float distFromCornerX = abs(gradUV.x - 0.5) * 2.0;
+                        float distFromCornerY = abs(gradUV.y - 0.5) * 2.0;
+                        float cornerDist = max(distFromCornerX, distFromCornerY);
+                        float cornerDarkening = mix(-0.12, 0.0, smoothstep(0.6, 1.0, cornerDist));
+
+                        // Combine all gradients smoothly
+                        float gradientBias = horizontalBias + verticalBias * 0.5 + cornerDarkening;
 
                         // Clamp to safe range to prevent black walls
-                        gradientBias = clamp(gradientBias, -0.10, 0.06);
+                        gradientBias = clamp(gradientBias, -0.18, 0.08);
 
-                        // Apply additive/subtractive bias (NOT multiplicative darkening)
-                        // This preserves spotlight lighting while adding depth
+                        // Apply additive/subtractive bias (preserves spotlight lighting)
                         gl_FragColor.rgb *= (1.0 + gradientBias);
                         `
                     );
@@ -560,7 +564,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.20);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.14); // Darker room
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
