@@ -472,35 +472,36 @@
                 });
 
                 // Museum-style environmental lighting gradient (baked into wall material)
-                // Enhanced with depth gradient for left/right walls and corner darkening
+                // Strong gradients: bright-dark-bright horizontal, depth, and dark corners
                 wallMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace(
                         '#include <dithering_fragment>',
                         `#include <dithering_fragment>
 
-                        // Enhanced museum gradient with depth and corner effects
+                        // Strong museum gradient with pronounced effects
                         vec2 gradUV = vUv;
 
-                        // Horizontal gradient: center brighter, edges darker for depth
-                        // Left/right walls: creates depth (bright at back, dark at front)
+                        // Horizontal gradient: EDGES BRIGHTER, CENTER DARKER (bright-dark-bright)
+                        // Left/right walls: left edge bright → center dark → right edge bright
                         float horizontalDist = abs(gradUV.x - 0.5) * 2.0; // 0 at center, 1 at edges
-                        float horizontalBias = mix(0.08, -0.15, smoothstep(0.0, 1.0, horizontalDist));
+                        float horizontalBias = mix(-0.25, 0.18, smoothstep(0.0, 1.0, horizontalDist));
 
-                        // Vertical gradient: ceiling brighter, floor darker
-                        float verticalBias = mix(-0.06, 0.05, smoothstep(0.0, 1.0, gradUV.y));
+                        // Vertical/Depth gradient: NEAR VIEWER BRIGHTER (bottom), far darker (top)
+                        // Creates depth - walls brighter near you, darker in distance
+                        float depthBias = mix(0.12, -0.15, smoothstep(0.0, 1.0, gradUV.y));
 
-                        // Corner darkening: all four corners darker for room depth
-                        // Distance from corners (0 at corners, 1 at center)
+                        // Strong corner darkening: all four corners much darker
+                        // Creates pronounced room depth and architectural feel
                         float distFromCornerX = abs(gradUV.x - 0.5) * 2.0;
                         float distFromCornerY = abs(gradUV.y - 0.5) * 2.0;
                         float cornerDist = max(distFromCornerX, distFromCornerY);
-                        float cornerDarkening = mix(-0.12, 0.0, smoothstep(0.6, 1.0, cornerDist));
+                        float cornerDarkening = mix(-0.22, 0.0, smoothstep(0.5, 1.0, cornerDist));
 
-                        // Combine all gradients smoothly
-                        float gradientBias = horizontalBias + verticalBias * 0.5 + cornerDarkening;
+                        // Combine all gradients with strong effect
+                        float gradientBias = horizontalBias + depthBias * 0.7 + cornerDarkening;
 
                         // Clamp to safe range to prevent black walls
-                        gradientBias = clamp(gradientBias, -0.18, 0.08);
+                        gradientBias = clamp(gradientBias, -0.28, 0.20);
 
                         // Apply additive/subtractive bias (preserves spotlight lighting)
                         gl_FragColor.rgb *= (1.0 + gradientBias);
