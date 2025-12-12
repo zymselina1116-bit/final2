@@ -471,6 +471,28 @@
                     metalness: 0.0
                 });
 
+                // HEMISPHERIC GRADIENT: Apply subtle vertical gradient based on surface normal
+                wallMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `
+                        #include <dithering_fragment>
+
+                        // Hemispheric gradient for realistic gallery walls
+                        vec3 roomBaseColor = vec3(0.22, 0.22, 0.23);  // exact base darkness
+                        vec3 roomTopLight = vec3(0.27, 0.27, 0.28);   // slightly brighter top
+
+                        // Mix based on surface normal Y component
+                        vec3 worldNormal = normalize(vNormal);
+                        float wallMix = smoothstep(-1.0, 1.0, worldNormal.y);
+                        vec3 gradientColor = mix(roomBaseColor, roomTopLight, wallMix);
+
+                        // Apply gradient to existing color
+                        gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * gradientColor / vec3(0.98), 0.85);
+                        `
+                    );
+                };
+
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
@@ -527,7 +549,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.06);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.10);
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
@@ -834,7 +856,7 @@
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 1.5; // More blurred shadow edges
+                light.shadow.radius = 1.8; // Soft blurred shadow edges
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
