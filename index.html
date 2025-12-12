@@ -471,24 +471,60 @@
                     metalness: 0.0
                 });
 
-                // HEMISPHERIC GRADIENT: Apply subtle vertical gradient based on surface normal
+                // ATMOSPHERIC WALL GRADIENT: Professional gallery lighting with depth and volume
                 wallMaterial.onBeforeCompile = (shader) => {
                     shader.fragmentShader = shader.fragmentShader.replace(
                         '#include <dithering_fragment>',
                         `
                         #include <dithering_fragment>
 
-                        // Hemispheric gradient for realistic gallery walls
-                        vec3 roomBaseColor = vec3(0.22, 0.22, 0.23);  // exact base darkness
-                        vec3 roomTopLight = vec3(0.27, 0.27, 0.28);   // slightly brighter top
-
-                        // Mix based on surface normal Y component
+                        // Professional gallery wall lighting - atmospheric depth and volume
+                        vec3 worldPos = vWorldPosition;
                         vec3 worldNormal = normalize(vNormal);
-                        float wallMix = smoothstep(-1.0, 1.0, worldNormal.y);
-                        vec3 gradientColor = mix(roomBaseColor, roomTopLight, wallMix);
 
-                        // Apply gradient to existing color
-                        gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * gradientColor / vec3(0.98), 0.85);
+                        // VERTICAL LUMINANCE GRADIENT (subtle, smooth, no banding)
+                        // Upper walls slightly brighter (soft ambient bounce from overhead)
+                        // Lower walls slightly darker (floor proximity)
+                        float heightFactor = (worldPos.y) / ${height}.0;
+                        heightFactor = clamp(heightFactor, 0.0, 1.0);
+
+                        // Smooth vertical gradient with multiple easing for natural falloff
+                        float verticalGradient = smoothstep(0.0, 0.6, heightFactor);
+                        verticalGradient = mix(verticalGradient, smoothstep(0.2, 1.0, heightFactor), 0.4);
+
+                        // Base darkness with subtle upper brightening
+                        float baseLuminance = 0.88;  // Keep walls dark
+                        float topLuminance = 1.08;   // Upper area slightly brighter
+                        float luminanceMult = mix(baseLuminance, topLuminance, verticalGradient);
+
+                        // GENTLE CORNER AMBIENT OCCLUSION (soft separation of planes)
+                        float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
+                        float distToEdgeY = min(abs(worldPos.y - ${height}.0), abs(worldPos.y - 0.0));
+                        float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
+                        float distToCorner = min(min(distToEdgeX, distToEdgeY), distToEdgeZ);
+
+                        // Very soft AO, just enough to separate planes
+                        float cornerAO = smoothstep(0.0, 1.2, distToCorner);
+                        cornerAO = mix(0.92, 1.0, cornerAO);  // Gentle darkening, not harsh
+
+                        // SOFT AMBIENT BOUNCE (subtle tonal variation for atmospheric depth)
+                        // Simulates scattered light in gallery air
+                        float ambientBounce = 1.0 + (verticalGradient * 0.06);  // Very subtle
+
+                        // COMBINE ALL ATMOSPHERIC EFFECTS
+                        float finalLuminance = luminanceMult * cornerAO * ambientBounce;
+
+                        // Apply to wall color (multiply for natural darkening/lightening)
+                        gl_FragColor.rgb *= finalLuminance;
+
+                        // Add ultra-subtle warm bounce from floor (gallery atmosphere)
+                        float floorBounce = (1.0 - heightFactor) * 0.015;
+                        gl_FragColor.rgb += vec3(floorBounce * 0.95, floorBounce * 0.94, floorBounce * 0.92);
+
+                        // Ensure walls don't become flat - add micro-tonal variation
+                        // This prevents uniform color blocks
+                        float microVariation = fract(sin(dot(worldPos.xz, vec2(12.9898, 78.233))) * 43758.5453) * 0.008;
+                        gl_FragColor.rgb += microVariation;
                         `
                     );
                 };
@@ -922,6 +958,12 @@
                 const centerY = (minY + maxY) / 2;
                 const scale = 1.5 / Math.max(maxX - minX, maxY - minY); // Scale to fit in 1.5 units
 
+                // Calculate maximum width of the scaled shape for base sizing
+                const scaledWidth = (maxX - minX) * scale;
+                const scaledHeight = (maxY - minY) * scale;
+                const maxDimension = Math.max(scaledWidth, scaledHeight);
+                const baseRadius = Math.min(maxDimension / 2, 0.4); // Max radius 0.4 like carousel
+
                 this.drawingPoints.forEach((point, i) => {
                     const x = (point.x - centerX) * scale;
                     const y = -(point.y - centerY) * scale; // Flip Y
@@ -929,6 +971,20 @@
                     else shape.lineTo(x, y);
                 });
                 shape.closePath();
+
+                // CIRCULAR BASE (same as carousel, sized to panel)
+                const baseGeometry = new THREE.CylinderGeometry(baseRadius, baseRadius, 0.1, 32);
+                const baseMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xc0c0c0,
+                    metalness: 0.9,
+                    roughness: 0.2
+                });
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.position.y = 0.05;
+                base.castShadow = false;
+                base.userData.isDraggable = true; // Mark base as draggable
+                group.add(base);
+                group.userData.base = base; // Store reference for dragging
 
                 // Create geometry from SHAPE (NOT rectangle) - this creates proper shadow
                 const geometry = new THREE.ShapeGeometry(shape);
@@ -1131,14 +1187,28 @@
                         parent = parent.parent;
                     }
 
-                    if (parent.userData.type === 'spotlight') {
+                    // For panels, only allow dragging if base is clicked
+                    if (parent.userData.type === 'panel') {
+                        // Check if clicked object is the base or a child of the base
+                        if (object === parent.userData.base || object.userData.isDraggable) {
+                            this.selectedObject = parent;
+                            this.selectedLight = null;
+                            this.isDragging = true;
+                        } else {
+                            // Clicked panel mesh, not base - don't drag
+                            this.isRotatingView = true;
+                            this.selectedObject = null;
+                            this.selectedLight = null;
+                        }
+                    } else if (parent.userData.type === 'spotlight') {
                         this.selectedLight = parent;
                         this.selectedObject = null;
+                        this.isDragging = true;
                     } else if (parent.userData.type !== 'glowingPoint') {
                         this.selectedObject = parent;
                         this.selectedLight = null;
+                        this.isDragging = true;
                     }
-                    this.isDragging = true;
                 } else {
                     this.isRotatingView = true;
                     this.selectedObject = null;
