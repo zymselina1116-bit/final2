@@ -450,7 +450,15 @@
                 wallCtx.fillStyle = '#fafafa';
                 wallCtx.fillRect(0, 0, 512, 512);
 
-                // Very faint texture (barely visible)
+                // Add subtle edge darkening to texture (darker at edges for corner effect)
+                const edgeGradient = wallCtx.createRadialGradient(256, 256, 100, 256, 256, 300);
+                edgeGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');      // Center - no darkening
+                edgeGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0)');    // Most of texture - no darkening
+                edgeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.08)');   // Edges - slightly darker
+                wallCtx.fillStyle = edgeGradient;
+                wallCtx.fillRect(0, 0, 512, 512);
+
+                // Very faint texture (barely visible) for realism
                 for (let i = 0; i < 8000; i++) {
                     const x = Math.random() * 512;
                     const y = Math.random() * 512;
@@ -470,31 +478,6 @@
                     roughness: 0.95,  // Very matte
                     metalness: 0.0
                 });
-
-                // SUBTLE CORNER AO: Slightly darker at wall intersections
-                wallMaterial.onBeforeCompile = (shader) => {
-                    shader.fragmentShader = shader.fragmentShader.replace(
-                        '#include <dithering_fragment>',
-                        `
-                        #include <dithering_fragment>
-
-                        // Very subtle corner ambient occlusion
-                        vec3 worldPos = vWorldPosition;
-
-                        // Distance to room edges (corners)
-                        float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
-                        float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
-                        float distToCorner = min(distToEdgeX, distToEdgeZ);
-
-                        // Very subtle corner darkening (only 5% max)
-                        float cornerAO = smoothstep(0.0, 2.5, distToCorner);
-                        cornerAO = mix(0.95, 1.0, cornerAO);
-
-                        // Apply corner AO (very subtle)
-                        gl_FragColor.rgb *= cornerAO;
-                        `
-                    );
-                };
 
                 // Back wall
                 const backWall = new THREE.Mesh(
