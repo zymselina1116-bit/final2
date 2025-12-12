@@ -471,46 +471,6 @@
                     metalness: 0.0
                 });
 
-                // REALISTIC WALL LIGHTING: Corner darkening + depth gradient for left/right walls
-                wallMaterial.onBeforeCompile = (shader) => {
-                    shader.fragmentShader = shader.fragmentShader.replace(
-                        '#include <dithering_fragment>',
-                        `
-                        #include <dithering_fragment>
-
-                        // Realistic gallery lighting effects
-                        vec3 worldPos = vWorldPosition;
-                        vec3 worldNormal = normalize(vNormal);
-
-                        // CORNER AMBIENT OCCLUSION - slightly darker at corners
-                        float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
-                        float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
-                        float distToCorner = min(distToEdgeX, distToEdgeZ);
-
-                        // Soft corner darkening
-                        float cornerAO = smoothstep(0.0, 1.8, distToCorner);
-                        cornerAO = mix(0.88, 1.0, cornerAO);
-
-                        // DEPTH GRADIENT for left/right walls (brighter toward front, darker toward back)
-                        float depthGradient = 1.0;
-
-                        // Check if this is left or right wall (normal facing X direction)
-                        if (abs(worldNormal.x) > 0.9) {
-                            // Normalize Z position (-depth/2 to +depth/2)
-                            float zNorm = (worldPos.z + ${this.roomSize.depth/2}.0) / ${this.roomSize.depth}.0;
-                            // Front (positive Z) brighter, back (negative Z) darker
-                            depthGradient = mix(0.90, 1.08, zNorm);
-                        }
-
-                        // Combine effects
-                        float lightingFactor = cornerAO * depthGradient;
-
-                        // Apply to final color (spotlight proximity brightness handled by THREE.js)
-                        gl_FragColor.rgb *= lightingFactor;
-                        `
-                    );
-                };
-
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
