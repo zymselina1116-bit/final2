@@ -560,7 +560,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.12); // Darker room
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.20);
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
