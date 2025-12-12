@@ -471,32 +471,6 @@
                     metalness: 0.0
                 });
 
-                // SIMPLE CORNER AMBIENT OCCLUSION: Slightly darker where planes meet
-                wallMaterial.onBeforeCompile = (shader) => {
-                    shader.fragmentShader = shader.fragmentShader.replace(
-                        '#include <dithering_fragment>',
-                        `
-                        #include <dithering_fragment>
-
-                        // Soft corner ambient occlusion for depth
-                        vec3 worldPos = vWorldPosition;
-
-                        // Calculate distance to room edges/corners
-                        float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
-                        float distToEdgeY = min(abs(worldPos.y - ${height}.0), abs(worldPos.y - 0.0));
-                        float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
-                        float distToCorner = min(min(distToEdgeX, distToEdgeY), distToEdgeZ);
-
-                        // Soft AO - corners slightly darker, gradual falloff
-                        float cornerAO = smoothstep(0.0, 1.5, distToCorner);
-                        cornerAO = mix(0.90, 1.0, cornerAO);  // Slightly darker at corners (10% max)
-
-                        // Apply corner AO (multiply existing lighting)
-                        gl_FragColor.rgb *= cornerAO;
-                        `
-                    );
-                };
-
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
