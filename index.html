@@ -864,7 +864,7 @@
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 3.5; // Moderate blur - allows distance-based softness variation
+                light.shadow.radius = 4.5; // More blur for softer shadow edges
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
