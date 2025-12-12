@@ -560,7 +560,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.15); // Lighter shadows while room stays darker via wall gradient
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.25); // Much lighter shadows
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
@@ -866,7 +866,7 @@
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 3.0; // More blurred shadow edges
+                light.shadow.radius = 5.0; // Very blurred, soft shadow edges
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
