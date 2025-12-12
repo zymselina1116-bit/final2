@@ -471,6 +471,46 @@
                     metalness: 0.0
                 });
 
+                // REALISTIC WALL LIGHTING: Corner darkening + depth gradient for left/right walls
+                wallMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `
+                        #include <dithering_fragment>
+
+                        // Realistic gallery lighting effects
+                        vec3 worldPos = vWorldPosition;
+                        vec3 worldNormal = normalize(vNormal);
+
+                        // CORNER AMBIENT OCCLUSION - slightly darker at corners
+                        float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
+                        float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
+                        float distToCorner = min(distToEdgeX, distToEdgeZ);
+
+                        // Soft corner darkening
+                        float cornerAO = smoothstep(0.0, 1.8, distToCorner);
+                        cornerAO = mix(0.88, 1.0, cornerAO);
+
+                        // DEPTH GRADIENT for left/right walls (brighter toward front, darker toward back)
+                        float depthGradient = 1.0;
+
+                        // Check if this is left or right wall (normal facing X direction)
+                        if (abs(worldNormal.x) > 0.9) {
+                            // Normalize Z position (-depth/2 to +depth/2)
+                            float zNorm = (worldPos.z + ${this.roomSize.depth/2}.0) / ${this.roomSize.depth}.0;
+                            // Front (positive Z) brighter, back (negative Z) darker
+                            depthGradient = mix(0.90, 1.08, zNorm);
+                        }
+
+                        // Combine effects
+                        float lightingFactor = cornerAO * depthGradient;
+
+                        // Apply to final color (spotlight proximity brightness handled by THREE.js)
+                        gl_FragColor.rgb *= lightingFactor;
+                        `
+                    );
+                };
+
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
@@ -527,7 +567,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.10);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.14);
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
@@ -815,15 +855,14 @@
                 group.userData.fixture = fixture;
 
                 // Pure WHITE spotlight - BRIGHTER for darker room, soft realistic gallery lighting
-                // Base intensity: 1.2 (brighter spotlight for darker room contrast)
+                // Base intensity: 1.5 (brighter spotlight)
                 // Penumbra: 0.7 (smooth, real-world edges)
                 // Decay: 2.0 (natural falloff)
-                // Room is darker overall (ambient 0.06), spotlight creates bright focal areas
+                // Ambient: 0.14 (lighter shadows)
                 // Shadows use multiplicative layering:
-                //   Darker ambient = more dramatic shadows
                 //   Intersecting shadows = naturally darker (2, 3, 4+ layers accumulate)
                 //   More layers = progressively darker intersection
-                const light = new THREE.SpotLight(0xffffff, 1.2, 40, Math.PI / 5, 0.7, 2);
+                const light = new THREE.SpotLight(0xffffff, 1.5, 40, Math.PI / 5, 0.7, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
@@ -834,7 +873,7 @@
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 1.8; // Soft blurred shadow edges
+                light.shadow.radius = 2.2; // Blurred shadow edges (not too much)
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
