@@ -560,7 +560,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.25); // Much lighter shadows
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.12); // Darker room
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
@@ -849,13 +849,11 @@
 
                 // Pure WHITE spotlight - BRIGHTER for darker room, soft realistic gallery lighting
                 // Base intensity: 1.8 (brighter spotlight)
-                // Penumbra: 0.7 (smooth, real-world edges)
-                // Decay: 2.0 (natural falloff)
-                // Ambient: 0.14 (lighter shadows)
-                // Shadows use multiplicative layering:
-                //   Intersecting shadows = naturally darker (2, 3, 4+ layers accumulate)
-                //   More layers = progressively darker intersection
-                const light = new THREE.SpotLight(0xffffff, 1.8, 40, Math.PI / 5, 0.7, 2);
+                // Penumbra: 0.8 (softer edges for natural shadow falloff)
+                // Decay: 2.0 (natural falloff - creates lighter shadows at distance)
+                // Ambient: 0.12 (darker room)
+                // Distance-based shadow behavior: farther objects = lighter/softer shadows
+                const light = new THREE.SpotLight(0xffffff, 1.8, 40, Math.PI / 5, 0.8, 2);
                 light.position.set(0, 0.4, 0);
                 light.target.position.set(0, 0, -5);
                 light.castShadow = true;
@@ -866,7 +864,7 @@
                 light.shadow.bias = -0.0002; // Subtle bias for layering
                 light.shadow.camera.near = 0.1;
                 light.shadow.camera.far = 50;
-                light.shadow.radius = 5.0; // Very blurred, soft shadow edges
+                light.shadow.radius = 3.5; // Moderate blur - allows distance-based softness variation
                 group.add(light);
                 group.add(light.target);
                 group.userData.light = light;
