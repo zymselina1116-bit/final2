@@ -471,6 +471,39 @@
                     metalness: 0.0
                 });
 
+                // Museum-style environmental lighting gradient (baked into wall material)
+                // This creates subtle spatial depth independent of spotlight
+                wallMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `#include <dithering_fragment>
+
+                        // Museum-style environmental gradient (NOT a shadow, NOT tied to spotlight)
+                        // Soft ambient shading for architectural depth
+                        vec2 gradUV = vUv;
+
+                        // Horizontal gradient: center brighter (+6%), edges darker (-10%)
+                        // Creates feeling of wall curving away at edges
+                        float horizontalDist = abs(gradUV.x - 0.5) * 2.0; // 0 at center, 1 at edges
+                        float horizontalBias = mix(0.06, -0.10, smoothstep(0.0, 1.0, horizontalDist));
+
+                        // Vertical gradient: ceiling brighter (+4%), floor darker (-4%)
+                        // Subtle architectural shading
+                        float verticalBias = mix(-0.04, 0.04, smoothstep(0.0, 1.0, gradUV.y));
+
+                        // Combine gradients smoothly
+                        float gradientBias = horizontalBias + verticalBias * 0.5;
+
+                        // Clamp to safe range to prevent black walls
+                        gradientBias = clamp(gradientBias, -0.10, 0.06);
+
+                        // Apply additive/subtractive bias (NOT multiplicative darkening)
+                        // This preserves spotlight lighting while adding depth
+                        gl_FragColor.rgb *= (1.0 + gradientBias);
+                        `
+                    );
+                };
+
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
@@ -527,7 +560,7 @@
                 // DARKER ambient light - room should be darker overall
                 // Only areas hit by spotlight should be bright
                 // Maintains clarity but reduces overall brightness
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.18);
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.12); // Darker room
                 this.scene.add(ambientLight);
 
                 // Remove skylight - only spotlight creates light
