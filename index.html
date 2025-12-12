@@ -471,6 +471,31 @@
                     metalness: 0.0
                 });
 
+                // SUBTLE CORNER AO: Slightly darker at wall intersections
+                wallMaterial.onBeforeCompile = (shader) => {
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `
+                        #include <dithering_fragment>
+
+                        // Very subtle corner ambient occlusion
+                        vec3 worldPos = vWorldPosition;
+
+                        // Distance to room edges (corners)
+                        float distToEdgeX = min(abs(worldPos.x - ${this.roomSize.width/2}.0), abs(worldPos.x + ${this.roomSize.width/2}.0));
+                        float distToEdgeZ = min(abs(worldPos.z - ${this.roomSize.depth/2}.0), abs(worldPos.z + ${this.roomSize.depth/2}.0));
+                        float distToCorner = min(distToEdgeX, distToEdgeZ);
+
+                        // Very subtle corner darkening (only 5% max)
+                        float cornerAO = smoothstep(0.0, 2.5, distToCorner);
+                        cornerAO = mix(0.95, 1.0, cornerAO);
+
+                        // Apply corner AO (very subtle)
+                        gl_FragColor.rgb *= cornerAO;
+                        `
+                    );
+                };
+
                 // Back wall
                 const backWall = new THREE.Mesh(
                     new THREE.PlaneGeometry(width, height),
