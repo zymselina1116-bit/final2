@@ -1037,14 +1037,18 @@
                         map: holoTexture,
                         side: THREE.DoubleSide,
                         transparent: true,          // SEMI-TRANSPARENT - allows light to pass through
-                        opacity: 0.65,              // 65% opacity - translucent for dreamy effect
+                        opacity: 0.5,               // Lower opacity - more transparent
                         roughness: 0.15,            // Smooth but slightly diffused
                         metalness: 0.7,             // Metallic iridescent shine
                         clearcoat: 0.8,             // Glossy coating for neon effect
                         clearcoatRoughness: 0.2,    // Slightly soft reflections
                         envMapIntensity: 1.2,       // Environment reflections
                         reflectivity: 0.9,          // High reflectivity for dreamy glow
-                        transmission: 0.3           // Light transmission for colored shadows
+                        transmission: 0.85,         // HIGH transmission - colored light passes through to create colored shadows
+                        thickness: 0.5,             // Material thickness affects light absorption
+                        ior: 1.5,                   // Index of refraction for realistic light bending
+                        attenuationDistance: 2.0,   // How far colored light travels
+                        attenuationColor: new THREE.Color('#ffffff') // White attenuation to preserve colors
                     });
                 } else {
                     // NORMAL material - LIGHTER translucent gray shadow
