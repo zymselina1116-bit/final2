@@ -609,11 +609,16 @@
                 edgeLight2.position.set(-width/2, height, -depth/2);
                 this.scene.add(edgeLight2);
 
-                // Add a default white spotlight
-                const defaultSpotlight = this.createSpotlightObject();
-                defaultSpotlight.position.set(-2, 0, 0);
-                this.scene.add(defaultSpotlight);
-                this.spotlights.push(defaultSpotlight);
+                // Add two default white spotlights at startup
+                const spotlight1 = this.createSpotlightObject();
+                spotlight1.position.set(-2, 0, -1);
+                this.scene.add(spotlight1);
+                this.spotlights.push(spotlight1);
+
+                const spotlight2 = this.createSpotlightObject();
+                spotlight2.position.set(2, 0, 1);
+                this.scene.add(spotlight2);
+                this.spotlights.push(spotlight2);
             },
 
             getWallFacing() {
