@@ -1107,6 +1107,13 @@
             setupEventListeners() {
                 window.addEventListener('resize', () => this.onResize());
 
+                // Delete key to remove selected object
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Delete' || e.key === 'Backspace') {
+                        this.deleteSelectedObject();
+                    }
+                });
+
                 this.renderer.domElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
                 this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
                 this.renderer.domElement.addEventListener('mouseup', () => this.onMouseUp());
@@ -1285,6 +1292,39 @@
             onMouseUp() {
                 this.isDragging = false;
                 this.isRotatingView = false;
+            },
+
+            deleteSelectedObject() {
+                if (this.selectedObject) {
+                    const obj = this.selectedObject;
+
+                    // Remove from scene
+                    this.scene.remove(obj);
+
+                    // Remove from appropriate array
+                    if (obj.userData.type === 'panel') {
+                        const index = this.panels.indexOf(obj);
+                        if (index > -1) this.panels.splice(index, 1);
+                    } else if (obj.userData.type === 'carousel') {
+                        const index = this.carousels.indexOf(obj);
+                        if (index > -1) this.carousels.splice(index, 1);
+                    }
+
+                    // Clear selection
+                    this.selectedObject = null;
+                } else if (this.selectedLight) {
+                    const light = this.selectedLight;
+
+                    // Remove from scene
+                    this.scene.remove(light);
+
+                    // Remove from spotlights array
+                    const index = this.spotlights.indexOf(light);
+                    if (index > -1) this.spotlights.splice(index, 1);
+
+                    // Clear selection
+                    this.selectedLight = null;
+                }
             },
 
             updateCameraPosition() {
