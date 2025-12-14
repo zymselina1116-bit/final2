@@ -1074,6 +1074,38 @@
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
+                // ═══════════════════════════════════════════════════════════════
+                // COLORED PROJECTION LAYER for LASER panels on back wall
+                // ═══════════════════════════════════════════════════════════════
+                // Semi-transparent holographic projection that follows shadow
+                // Same shape as panel, same texture, blurred edges
+                // ═══════════════════════════════════════════════════════════════
+                if (this.panelMaterial === 'laser') {
+                    // Create projection plane with same shape as panel
+                    const projectionGeometry = new THREE.ShapeGeometry(shape);
+                    const projectionMaterial = new THREE.MeshBasicMaterial({
+                        map: material.map.clone(),  // Same holographic texture
+                        transparent: true,
+                        opacity: 0.4,               // Semi-transparent colored projection
+                        side: THREE.DoubleSide,
+                        depthWrite: false,          // Don't interfere with depth
+                        blending: THREE.AdditiveBlending  // Additive blending for dreamy glow
+                    });
+
+                    const projection = new THREE.Mesh(projectionGeometry, projectionMaterial);
+
+                    // Position on back wall, behind the panel
+                    // Calculate projection offset based on spotlight position
+                    const wallDistance = 5; // Distance to back wall from center
+                    projection.position.set(0, 0.75, -wallDistance);
+                    projection.position.z += 0.01; // Slightly in front of wall to avoid z-fighting
+
+                    // Add to scene (not group) so it stays on wall
+                    // Store reference in group for cleanup
+                    group.userData.projection = projection;
+                    this.scene.add(projection);
+                }
+
                 return group;
             },
 
