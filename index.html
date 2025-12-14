@@ -1090,7 +1090,7 @@
                     // Create fake shadow plane on floor with same texture
                     const shadowGeometry = new THREE.PlaneGeometry(width * 1.2, height * 1.2);
                     const shadowMaterial = new THREE.MeshBasicMaterial({
-                        map: holoTexture.clone(), // Same holographic texture
+                        map: material.map.clone(), // Use the same texture from the laser panel material
                         transparent: true,
                         opacity: 0.3,              // Translucent colored shadow
                         depthWrite: false,         // Don't interfere with depth buffer
