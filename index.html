@@ -1074,50 +1074,6 @@
                 group.add(mesh);
                 group.userData.mesh = mesh;
 
-                // ═══════════════════════════════════════════════════════════════
-                // FAKE COLORED SHADOW for LASER panels (overlaid on real shadow)
-                // ═══════════════════════════════════════════════════════════════
-                // Real THREE.js shadows stay intact (dark/grey)
-                // This creates a colored overlay that looks like "laser light leaking"
-                // ═══════════════════════════════════════════════════════════════
-                if (this.panelMaterial === 'laser') {
-                    // Calculate bounding box to match panel size
-                    geometry.computeBoundingBox();
-                    const bbox = geometry.boundingBox;
-                    const width = bbox.max.x - bbox.min.x;
-                    const height = bbox.max.y - bbox.min.y;
-
-                    // Create fake shadow plane on floor with same texture
-                    const shadowGeometry = new THREE.PlaneGeometry(width * 1.2, height * 1.2);
-                    const shadowMaterial = new THREE.MeshBasicMaterial({
-                        map: material.map.clone(), // Use the same texture from the laser panel material
-                        transparent: true,
-                        opacity: 0.3,              // Translucent colored shadow
-                        depthWrite: false,         // Don't interfere with depth buffer
-                        blending: THREE.MultiplyBlending, // Overlay effect like colored light
-                        side: THREE.DoubleSide
-                    });
-
-                    const fakeShadow = new THREE.Mesh(shadowGeometry, shadowMaterial);
-
-                    // Position on floor, slightly above to avoid z-fighting
-                    fakeShadow.position.set(0, 0.01, 0);
-                    fakeShadow.rotation.x = -Math.PI / 2; // Flat on floor
-
-                    // Match panel position (will move with panel when dragged)
-                    group.add(fakeShadow);
-                    group.userData.fakeShadow = fakeShadow;
-                }
-
-                // ═══════════════════════════════════════════════════════════════
-                // LASER PANEL - NO ADDITIONAL LIGHTS
-                // ═══════════════════════════════════════════════════════════════
-                // Laser panel is NOT a light source - it only reflects spotlight
-                // Holographic diffraction comes from the material itself
-                // Real shadow on wall preserves exact silhouette from panel geometry
-                // Fake colored shadow on floor creates iridescent overlay effect
-                // ═══════════════════════════════════════════════════════════════
-
                 return group;
             },
 
