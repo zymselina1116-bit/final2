@@ -1302,6 +1302,12 @@
                             -depth / 2 + margin,
                             Math.min(depth / 2 - margin, intersection.z)
                         );
+
+                        // Update projection position for laser panels
+                        if (obj.userData.projection) {
+                            obj.userData.projection.position.x = obj.position.x;
+                            obj.userData.projection.position.y = obj.position.y;
+                        }
                     }
                 }
 
