@@ -999,10 +999,11 @@
                 let material;
                 if (this.panelMaterial === 'laser') {
                     // ═══════════════════════════════════════════════════════════════
-                    // HOLOGRAPHIC DIFFRACTION MATERIAL (like real holographic film)
+                    // DREAMY NEON HOLOGRAPHIC MATERIAL - Semi-transparent, light-passing
                     // ═══════════════════════════════════════════════════════════════
-                    // Shimmering rainbow, sharp color shifts, metallic reflection
-                    // Multi-angle iridescence - NOT a light source, only reflects
+                    // Pastel iridescent gradient (purple, cyan, pink, blue)
+                    // Semi-transparent to allow colorful light to pass through
+                    // Creates dreamy colorful shadows and lighting on walls
                     // ═══════════════════════════════════════════════════════════════
 
                     const holoCanvas = document.createElement('canvas');
@@ -1010,24 +1011,23 @@
                     holoCanvas.height = 512;
                     const ctx = holoCanvas.getContext('2d');
 
-                    // Create vibrant holographic diffraction texture
-                    // Sharp rainbow bands (not soft pastels)
-                    const gradient = ctx.createLinearGradient(0, 0, 512, 512);
-                    gradient.addColorStop(0, '#ff00ff');    // Magenta
-                    gradient.addColorStop(0.14, '#0080ff'); // Blue
-                    gradient.addColorStop(0.28, '#00ffff'); // Cyan
-                    gradient.addColorStop(0.42, '#00ff00'); // Green
-                    gradient.addColorStop(0.57, '#ffff00'); // Yellow
-                    gradient.addColorStop(0.71, '#ff8000'); // Orange
-                    gradient.addColorStop(0.85, '#ff0000'); // Red
-                    gradient.addColorStop(1, '#ff00ff');    // Back to magenta
+                    // Dreamy pastel holographic gradient (vertical bands)
+                    // Soft purple, cyan, pink, blue - iridescent neon effect
+                    const gradient = ctx.createLinearGradient(0, 0, 512, 0);
+                    gradient.addColorStop(0, '#b8a3ff');    // Soft purple/lavender
+                    gradient.addColorStop(0.2, '#6ee7f5');  // Bright cyan
+                    gradient.addColorStop(0.35, '#ffc0e5'); // Soft pink
+                    gradient.addColorStop(0.5, '#6ee7f5');  // Cyan again
+                    gradient.addColorStop(0.65, '#b8a3ff'); // Purple again
+                    gradient.addColorStop(0.8, '#ffc0e5');  // Pink again
+                    gradient.addColorStop(1, '#a0d8ff');    // Light blue
                     ctx.fillStyle = gradient;
                     ctx.fillRect(0, 0, 512, 512);
 
-                    // Add prismatic interference patterns (fine lines for diffraction)
-                    ctx.globalAlpha = 0.4;
-                    for (let i = 0; i < 512; i += 2) {
-                        ctx.fillStyle = i % 4 === 0 ? '#ffffff' : '#000000';
+                    // Add subtle vertical shimmer lines for holographic effect
+                    ctx.globalAlpha = 0.15;
+                    for (let i = 0; i < 512; i += 3) {
+                        ctx.fillStyle = i % 6 === 0 ? '#ffffff' : 'rgba(255,255,255,0.5)';
                         ctx.fillRect(i, 0, 1, 512);
                     }
 
@@ -1036,13 +1036,15 @@
                     material = new THREE.MeshPhysicalMaterial({
                         map: holoTexture,
                         side: THREE.DoubleSide,
-                        transparent: false,
-                        roughness: 0.1,             // Very high gloss (metallic shine)
-                        metalness: 0.9,             // Highly metallic (reflective, iridescent)
-                        clearcoat: 1.0,             // Strong clear coat for sharp reflections
-                        clearcoatRoughness: 0.1,    // Sharp reflections, not blurred
-                        envMapIntensity: 1.5,       // Strong environment reflections
-                        reflectivity: 1.0           // Maximum reflectivity
+                        transparent: true,          // SEMI-TRANSPARENT - allows light to pass through
+                        opacity: 0.65,              // 65% opacity - translucent for dreamy effect
+                        roughness: 0.15,            // Smooth but slightly diffused
+                        metalness: 0.7,             // Metallic iridescent shine
+                        clearcoat: 0.8,             // Glossy coating for neon effect
+                        clearcoatRoughness: 0.2,    // Slightly soft reflections
+                        envMapIntensity: 1.2,       // Environment reflections
+                        reflectivity: 0.9,          // High reflectivity for dreamy glow
+                        transmission: 0.3           // Light transmission for colored shadows
                     });
                 } else {
                     // NORMAL material - LIGHTER translucent gray shadow
